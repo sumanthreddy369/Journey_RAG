@@ -1,0 +1,25 @@
+# Python virtual environment - never upload this (huge, not needed)
+venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables / secrets
+.env
+*.env
+
+# Qdrant local storage (if any local data folder exists)
+qdrant_storage/
+
+# Large PDF source files (optional - only exclude if they're big/proprietary)
+# *.pdf
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# VS Code settings
+.vscode/
