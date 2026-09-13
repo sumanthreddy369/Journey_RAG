@@ -1,1 +1,13 @@
-venv\Scripts\python.exe -m pip freeze > requirements.txt
+# Existing Journey RAG pipeline
+fastapi>=0.110,<1
+uvicorn>=0.27,<1
+ollama>=0.3,<1
+qdrant-client>=1.9,<2
+pdfplumber>=0.11,<1
+tqdm>=4.66,<5
+
+# MCP exposes the existing RAG search and answer functions to MCP clients.
+mcp>=1.0,<2
+
+# Test dependency
+pytest>=8.0,<9
