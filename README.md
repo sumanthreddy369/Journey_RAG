@@ -40,3 +40,25 @@ ollama pull llama3.2
 ```
 
 The MCP endpoint is `http://127.0.0.1:8001/mcp`. It is read-only and uses the existing `journey_textbook` Qdrant collection; it does not reprocess or duplicate textbook vectors.
+
+## Project screenshots
+
+### End-to-end architecture
+
+![Journey RAG end-to-end flow](assets/screenshots/01-system-flow.png)
+
+### Qdrant running in Docker
+
+![Journey Qdrant Docker container](assets/screenshots/02-qdrant-docker.png)
+
+### FastAPI RAG question and cited answer
+
+![FastAPI RAG response](assets/screenshots/03-fastapi-rag-answer.png)
+
+### Local Ollama models
+
+![Ollama models used by Journey RAG](assets/screenshots/04-ollama-models.png)
+
+### MCP server implementation
+
+![Journey MCP server code](assets/screenshots/05-mcp-server-code.png)

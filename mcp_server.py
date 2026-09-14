@@ -5,7 +5,13 @@ from typing import Any, Callable
 from mcp.server.fastmcp import FastMCP
 
 MAX_RESULTS = 10
-mcp = FastMCP("Journey Textbook RAG", stateless_http=True, json_response=True)
+mcp = FastMCP(
+    "Journey Textbook RAG",
+    host="127.0.0.1",
+    port=8001,
+    stateless_http=True,
+    json_response=True,
+)
 
 
 def _load_query_functions() -> tuple[Callable[..., Any], Callable[..., Any]]:
@@ -91,7 +97,7 @@ def ask_textbook(question: str) -> dict[str, Any]:
 
 def main() -> None:
     """Serve MCP locally without exposing the textbook RAG service to the network."""
-    mcp.run(transport="streamable-http", host="127.0.0.1", port=8001)
+    mcp.run(transport="streamable-http")
 
 
 if __name__ == "__main__":
