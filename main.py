@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from learning import LearningRequest, LearningServiceError, create_learning_response
 from query import ask_journey
 
 app = FastAPI(title="Journey RAG API")
@@ -22,6 +23,16 @@ def ask(q: Question):
         "answer": answer,
         "citations": citations
     }
+
+@app.post("/learn")
+def learn(request: LearningRequest):
+    """Return a cited explanation and learner-facing quiz from the current RAG pipeline."""
+    try:
+        return create_learning_response(request)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except LearningServiceError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 @app.get("/health")
 def health():
