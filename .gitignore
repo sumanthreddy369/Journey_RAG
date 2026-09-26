@@ -16,6 +16,9 @@ __pycache__/
 # Qdrant local storage (if any local data folder exists)
 qdrant_storage/
 
+# Exported ONNX reranker models are local artifacts, not source code.
+models/
+
 # Large PDF source files (optional - only exclude if they're big/proprietary)
 # *.pdf
 

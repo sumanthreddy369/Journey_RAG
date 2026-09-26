@@ -11,3 +11,8 @@ mcp>=1.0,<2
 
 # Test dependency
 pytest>=8.0,<9
+
+# Optional local cross-encoder reranking. Enable with JOURNEY_ONNX_RERANKER_DIR.
+onnxruntime>=1.18,<2
+transformers>=4.45,<5
+numpy>=1.26,<3
