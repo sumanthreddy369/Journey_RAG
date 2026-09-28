@@ -1,5 +1,10 @@
 [
   {"question": "How do I convert degrees to radians in MATLAB?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:7:Problem 3-A.1:0"]},
   {"question": "What is the difference between a scalar and a vector?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:9:Problem 3-A.4:3"]},
-  {"question": "How do I calculate a circle area in MATLAB?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:9:Problem 3-A.3:2"]}
+  {"question": "How do I calculate a circle area in MATLAB?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:9:Problem 3-A.3:2"]},
+  {"question": "Where does MATLAB save files by default and search first for saved files?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:39:Problem 4-A.1:40"]},
+  {"question": "How can MATLAB check whether every element of y is twice the corresponding element of x?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:93:Problem 5-A.37:120"]},
+  {"question": "Which MATLAB function captures coordinates of a plotted intersection point?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:142:Problem 6-A.21:170"]},
+  {"question": "How do I construct and return a two-row array with square brackets in a MATLAB function?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:197:Problem 7-A.1:220"]},
+  {"question": "How do I count sign changes in a vector of random numbers in MATLAB?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:247:Problem 8-B.3:270"]}
 ]

@@ -24,10 +24,25 @@ PDF -> extracted_text.txt -> chunks.json -> embedding/index collection
 
 ## Evaluation data
 
-`evals/retrieval_cases.json` is a small seed set of questions with expected
-relevant chunks. Expand it with human-verified labels before publishing quality
-claims. Compare the same cases, settings, and latency measurement across dense,
-hybrid, and reranked retrieval.
+`evals/retrieval_cases.json` contains eight source-checked questions with expected
+relevant chunks spanning chapters 3–8. `evaluate_live.py` scores those labels
+against the running local baseline or experimental hybrid path. It validates
+baseline Qdrant payload metadata against `chunks.json` before mapping point IDs
+to citation IDs. Run from the repository root with Qdrant and Ollama available:
+
+```powershell
+.\venv\Scripts\python.exe evaluate_live.py --mode baseline --top-k 5
+.\venv\Scripts\python.exe evaluate_live.py --mode hybrid --top-k 5
+```
+
+On 2026-09-28, the local baseline returned recall@5 1.0, MRR 0.875 and
+NDCG@5 0.908. The existing experimental BGE/BM25/RRF path returned recall@5
+0.875, MRR 0.629 and NDCG@5 0.690 on the same eight questions. These are
+small, question-derived local retrieval checks, not held-out quality estimates,
+grounded-answer scores or a reason to switch the default path. No latency
+comparison was recorded. The installed Qdrant client 1.19.0 warned that the
+local server 1.17.1 is outside its supported minor-version range; both runs
+completed, but compatibility should be corrected before further benchmarks.
 
 ## Boundaries
 
