@@ -9,10 +9,11 @@
 | BGE collection | Complete | `journey_textbook_bge_v1`, 284 points, 384 dimensions. |
 | Baseline API | Complete | FastAPI at `http://127.0.0.1:8000/docs`. |
 | Hybrid API | Complete | FastAPI at `http://127.0.0.1:8002/docs` when `JOURNEY_RETRIEVAL_MODE=hybrid`. |
+| Hybrid + ONNX reranking API | Complete | FastAPI at `http://127.0.0.1:8003/docs` when hybrid mode and `JOURNEY_ONNX_RERANKER_DIR` are set. |
 | MCP server | Complete | Streamable HTTP at `http://127.0.0.1:8001/mcp`. |
 | Embedding model | Complete | Ollama `nomic-embed-text` for baseline; BGE small for hybrid dense retrieval. |
 | Answer model | Complete | Ollama `llama3.2` in the current application code. |
-| ONNX reranker | Partial | Adapter is implemented; a local exported ONNX model is still required. |
+| ONNX reranker | Complete locally | Exported local model loaded with ONNX Runtime and used by the port `8003` API. The model directory remains ignored by Git. |
 | Qwen models | Available locally | Not selected by application code or benchmarked. |
 
 ## Demonstration flow
@@ -27,7 +28,12 @@ flowchart LR
     G --> I[BM25 retrieval]
     H --> J[RRF fusion]
     I --> J
-    J --> K[Ollama answer with citations]
+    J -->|hybrid| K[Ollama answer with citations]
+    N[Swagger port 8003] --> O[Hybrid plus ONNX ask route]
+    O --> H
+    O --> I
+    J -->|reranked hybrid| P[ONNX cross-encoder rerank]
+    P --> K
     L[MCP port 8001] --> M[Search, answer, explain, quiz tools]
 ```
 
@@ -40,9 +46,10 @@ the separate BGE collection.
 1. Open Qdrant at `http://127.0.0.1:6333/dashboard` and show both collections.
 2. Open baseline Swagger at `http://127.0.0.1:8000/docs` and run `/ask`.
 3. Open hybrid Swagger at `http://127.0.0.1:8002/docs` and run `/ask`.
-4. Run local quiz-session creation and submission from Swagger to show the
+4. Open reranked hybrid Swagger at `http://127.0.0.1:8003/docs` and run `/ask`.
+5. Run local quiz-session creation and submission from Swagger to show the
    deterministic `reteach`, `practice`, or `advance` result.
-5. Open GitHub README and `docs/retrieval-experiments.md` for code and flow
+6. Open GitHub README and `docs/retrieval-experiments.md` for code and flow
    screenshots.
 
 ## Target, not built yet

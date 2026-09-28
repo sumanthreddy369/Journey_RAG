@@ -5,9 +5,10 @@ Local Retrieval-Augmented Generation pipeline for the Journey adaptive textbook 
 The same baseline is available through FastAPI and a local MCP server. Separate modules provide unconnected BGE, BM25, RRF, evaluation, and ONNX reranking experiments.
 
 > **Current status:** the runnable baseline uses PDF extraction, textbook chunks,
-> Ollama `nomic-embed-text`, Qdrant, Ollama `llama3.2`, FastAPI, and MCP. BGE
-> indexing, BM25, Reciprocal Rank Fusion, offline evaluation, and ONNX reranking
-> are implemented as experimental components. LangGraph, vLLM, SGLang, FAISS /
+> Ollama `nomic-embed-text`, Qdrant, Ollama `llama3.2`, FastAPI, and MCP. A
+> separately selected hybrid path uses BGE indexing, BM25, Reciprocal Rank Fusion,
+> and an optional locally exported ONNX reranker. Offline evaluation helpers are
+> included. LangGraph, vLLM, SGLang, FAISS /
 > Milvus adapters, fine-tuning, MLflow, DeepEval, and Microsoft 365 connectors
 > are planned—not presented as completed features.
 

@@ -8,6 +8,13 @@ for relevance before sending the final passages to Ollama.
 Question -> nomic-embed-text -> Qdrant top 10 -> ONNX cross-encoder -> top 3 -> Ollama + citations
 ```
 
+## Verified local configuration
+
+The local exported model in `models/bge-reranker-onnx` was loaded successfully
+with ONNX Runtime. It is used by the separately running API at
+`http://127.0.0.1:8003/docs` together with hybrid retrieval. The model directory
+is intentionally ignored by Git.
+
 ## Setup
 
 1. Install the project dependencies:
@@ -27,8 +34,9 @@ Question -> nomic-embed-text -> Qdrant top 10 -> ONNX cross-encoder -> top 3 -> 
 3. Point Journey RAG to the exported model for the current terminal session:
 
    ```powershell
+   $env:JOURNEY_RETRIEVAL_MODE = "hybrid"
    $env:JOURNEY_ONNX_RERANKER_DIR = "$PWD\models\bge-reranker-onnx"
-   uvicorn main:app --reload
+   uvicorn main:app --host 127.0.0.1 --port 8003
    ```
 
 If `JOURNEY_ONNX_RERANKER_DIR` is not set, reranking is disabled and the
