@@ -3,10 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from guardrails import GuardrailViolation, SlidingWindowRateLimiter, validate_citations, validate_question
 from learning import LearningRequest, LearningServiceError, create_learning_response
+from progress import QuizSubmission
 from query import ask_journey
+from sessions import LocalQuizSessionStore
 
 app = FastAPI(title="Journey RAG API")
 rate_limiter = SlidingWindowRateLimiter(limit=20, window_seconds=60)
+quiz_sessions = LocalQuizSessionStore()
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,6 +20,12 @@ app.add_middleware(
 
 class Question(BaseModel):
     question: str
+
+
+class LocalQuizSessionRequest(BaseModel):
+    """Development-only answer key input; no learner data is persisted."""
+
+    answer_key: list[int]
 
 @app.post("/ask")
 def ask(q: Question, request: Request):
@@ -44,6 +53,26 @@ def learn(learning_request: LearningRequest, request: Request):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except LearningServiceError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post("/local-quiz-sessions")
+def create_local_quiz_session(payload: LocalQuizSessionRequest):
+    """Create a process-local session for a synthetic answer key."""
+    try:
+        return {"session_id": quiz_sessions.create(payload.answer_key)}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/local-quiz-sessions/{session_id}/submit")
+def submit_local_quiz(session_id: str, submission: QuizSubmission):
+    """Evaluate a synthetic local quiz and return the deterministic route."""
+    try:
+        return quiz_sessions.evaluate(session_id, submission)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 @app.get("/health")
 def health():

@@ -31,6 +31,7 @@ Status: **in development**. The baseline is runnable locally. Retrieval experime
 ├── ingest.py                  # Baseline nomic embedding ingestion into Qdrant
 ├── bge_ingest.py              # Separate BGE collection builder
 ├── retrieval.py               # BM25 and Reciprocal Rank Fusion utilities
+├── hybrid_retrieval.py        # Runnable BGE + BM25 + RRF retrieval mode
 ├── reranker.py                # Optional ONNX cross-encoder adapter
 ├── evaluation.py              # Offline retrieval scoring helpers
 ├── retrieval_metrics.py       # Reciprocal-rank and NDCG functions
@@ -223,7 +224,7 @@ The experimental modules preserve the baseline collection. BGE vectors go to a d
 
 **Evaluation**: `evals/retrieval_cases.json` has three seed cases. `score_rankings` reports Recall@k, MRR, and NDCG@k for supplied rankings. It does not execute a live Qdrant benchmark by itself.
 
-**Status**: BGE builder, BM25, RRF, metrics, and ONNX adapter are **Partial** experimental components. See [docs/retrieval-experiments.md](docs/retrieval-experiments.md).
+**Status**: BGE builder, BM25, and RRF are **Complete** local components. Set `JOURNEY_RETRIEVAL_MODE=hybrid` before starting FastAPI to use the BGE + BM25 + RRF path. ONNX reranking remains **Partial** because it needs a local exported model. See [docs/retrieval-experiments.md](docs/retrieval-experiments.md).
 
 ---
 
@@ -274,6 +275,13 @@ ollama pull llama3.2
 .\venv\Scripts\python.exe -m uvicorn main:app --reload
 ```
 
+To demonstrate BGE + BM25 + RRF instead of the baseline Qdrant-only path:
+
+```powershell
+$env:JOURNEY_RETRIEVAL_MODE = "hybrid"
+.\venv\Scripts\python.exe -m uvicorn main:app --reload
+```
+
 5. Start the MCP server in a separate terminal:
 
 ```powershell
@@ -292,6 +300,7 @@ The HTTP API listens on the Uvicorn default `http://127.0.0.1:8000`; Swagger UI 
 | `.\venv\Scripts\python.exe chunk_pdf.py` | Build `chunks.json` from `extracted_text.txt`. |
 | `.\venv\Scripts\python.exe ingest.py` | Embed chunks with Ollama and upload the baseline Qdrant collection. |
 | `.\venv\Scripts\python.exe bge_ingest.py` | Build the separate BGE Qdrant collection. |
+| `$env:JOURNEY_RETRIEVAL_MODE = "hybrid"` | Select the BGE + BM25 + RRF request path for the current PowerShell session. |
 | `.\venv\Scripts\python.exe -m uvicorn main:app --reload` | Run FastAPI locally. |
 | `.\venv\Scripts\python.exe mcp_server.py` | Run the local MCP server. |
 | `.\venv\Scripts\python.exe -m pytest -q` | Run the pytest suite. |
@@ -348,9 +357,9 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8000/learn `
 | FastAPI `/ask`, `/learn`, `/health` | Complete. |
 | Read-only Streamable HTTP MCP server | Complete. |
 | Input/citation guards and in-memory limiter | Complete. |
-| Quiz JSON generation and deterministic progress routing | Partial; no submission endpoint or persistent learner store. |
-| BGE collection builder | Partial; code exists, collection must be built locally. |
-| BM25 and Reciprocal Rank Fusion | Partial; utilities exist but are not in the default API path. |
+| Quiz JSON generation and deterministic progress routing | Partial; local session endpoints exist, but there is no persistent learner store. |
+| BGE collection builder | Complete locally; builds a separate collection when Qdrant is running. |
+| BM25 and Reciprocal Rank Fusion | Complete locally; selected with `JOURNEY_RETRIEVAL_MODE=hybrid`. |
 | ONNX reranker | Partial; adapter exists, local ONNX model is required. |
 | Query rewriting | Stubbed; current function only normalizes whitespace. |
 | FAISS, Milvus, pgvector adapters | Target (not built yet). |

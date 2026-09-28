@@ -1,6 +1,8 @@
 import ollama
+import os
 from qdrant_client import QdrantClient
 from reranker import configured_reranker
+from query_rewrite import rewrite_query
 
 COLLECTION  = "journey_textbook"
 EMBED_MODEL = "nomic-embed-text"
@@ -11,6 +13,11 @@ client = QdrantClient(url=QDRANT_URL)
 
 def search(question, top_k=3):
     """Retrieve passages and optionally rerank them with a local ONNX model."""
+    question = rewrite_query(question)
+    if os.getenv("JOURNEY_RETRIEVAL_MODE", "baseline").lower() == "hybrid":
+        from hybrid_retrieval import hybrid_search
+
+        return hybrid_search(question, top_k=top_k)
     vec = ollama.embeddings(
         model=EMBED_MODEL,
         prompt=question
