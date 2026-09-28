@@ -2,7 +2,14 @@
 
 ## Purpose
 
-Extend the existing local RAG prototype into an adaptive-learning workflow without overstating unbuilt capabilities. The current repository already supports PDF ingestion, Qdrant vector retrieval, Ollama generation, FastAPI, and a read-only MCP interface.
+Extend the existing local RAG prototype into an adaptive-learning workflow without overstating unbuilt capabilities. The repository currently supports PDF ingestion, chunk metadata/citations, Qdrant vector retrieval, Ollama generation, FastAPI, a read-only MCP interface, quizzes, deterministic progress routing, local guardrails, retrieval metrics, a BGE collection builder, BM25/RRF utilities, and an optional ONNX reranker adapter.
+
+## Status snapshot — September 2026
+
+- **Baseline active:** `journey_textbook` using Ollama `nomic-embed-text` and Qdrant.
+- **Experiment code added:** versioned BGE collection builder, BM25, RRF, query normalization, seed retrieval cases, and ONNX cross-encoder adapter.
+- **Not yet claimed as running:** BGE benchmark results, hybrid retrieval in the default API request path, downloaded ONNX model, LangGraph, FAISS/Milvus/pgvector adapters, fine-tuning, vLLM/SGLang, MLflow, DeepEval, Langfuse, and Microsoft 365 connectors.
+- **Documentation:** see `ARCHITECTURE.md`, `DATASET.md`, and `RETRIEVAL_ENGINEERING.md`.
 
 ## Target student workflow
 
