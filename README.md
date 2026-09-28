@@ -224,7 +224,7 @@ The experimental modules preserve the baseline collection. BGE vectors go to a d
 
 **Evaluation**: `evals/retrieval_cases.json` has three seed cases. `score_rankings` reports Recall@k, MRR, and NDCG@k for supplied rankings. It does not execute a live Qdrant benchmark by itself.
 
-**Status**: BGE builder, BM25, and RRF are **Complete** local components. Set `JOURNEY_RETRIEVAL_MODE=hybrid` before starting FastAPI to use the BGE + BM25 + RRF path. ONNX reranking remains **Partial** because it needs a local exported model. See [docs/retrieval-experiments.md](docs/retrieval-experiments.md).
+**Status**: BGE builder, BM25, and RRF are **Complete** local components. Set `JOURNEY_RETRIEVAL_MODE=hybrid` before starting FastAPI to use the BGE + BM25 + RRF path. ONNX reranking remains **Partial** because it needs a local exported model. See [docs/retrieval-experiments.md](docs/retrieval-experiments.md) and [RUNTIME_PLAN.md](RUNTIME_PLAN.md).
 
 ---
 
