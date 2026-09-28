@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from guardrails import GuardrailViolation, SlidingWindowRateLimiter, validate_citations, validate_question
 from learning import LearningRequest, LearningServiceError, create_learning_response
@@ -8,6 +12,8 @@ from query import ask_journey
 from sessions import LocalQuizSessionStore
 
 app = FastAPI(title="Journey RAG API")
+PROJECT_ROOT = Path(__file__).parent
+app.mount("/static", StaticFiles(directory=PROJECT_ROOT / "static"), name="static")
 rate_limiter = SlidingWindowRateLimiter(limit=20, window_seconds=60)
 quiz_sessions = LocalQuizSessionStore()
 
@@ -81,3 +87,9 @@ def health():
 @app.get("/")
 def root():
     return {"message": "Welcome to Journey RAG API"}
+
+
+@app.get("/app", include_in_schema=False)
+def learner_app():
+    """Serve the local learner-facing demonstration interface."""
+    return FileResponse(PROJECT_ROOT / "static" / "index.html")

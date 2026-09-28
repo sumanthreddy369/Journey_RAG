@@ -21,6 +21,10 @@ Status: **in development**. The baseline is runnable locally. Retrieval experime
 ```text
 .
 ├── main.py                    # FastAPI application and HTTP routes
+├── static/                     # Learner-facing local web interface
+│   ├── index.html              # Interactive Journey page at /app
+│   ├── app.js                  # API calls and result rendering
+│   └── app.css                 # Responsive interface styles
 ├── query.py                   # Baseline Qdrant retrieval and Ollama answer generation
 ├── learning.py                # Structured explanation and quiz generation
 ├── progress.py                # Deterministic quiz score routing
@@ -41,7 +45,8 @@ Status: **in development**. The baseline is runnable locally. Retrieval experime
 ├── pages.json                 # Generated per-page extracted text
 ├── extracted_text.txt         # Generated raw extracted text
 ├── evals/
-│   └── retrieval_cases.json   # Three-case seed retrieval evaluation set
+│   └── retrieval_cases.json   # Eight labeled retrieval evaluation cases
+├── evaluate_live.py           # Run local Qdrant/Ollama retrieval evaluation
 ├── tests/                     # pytest coverage for deterministic modules
 ├── assets/screenshots/        # Project screenshots used by this README
 ├── docs/
@@ -162,7 +167,7 @@ Quiz generation starts from the cited explanation instead of directly from an un
 
 **Schema checks**: quiz JSON must contain the requested number of questions, with two to four choices per question. Invalid model JSON raises `LearningServiceError` and `/learn` maps it to HTTP 503.
 
-**Progress**: `progress.py` and `sessions.py` are **Complete** local primitives. The FastAPI app has no submission endpoint or persistent student store, so the end-to-end progress API is **Partial**.
+**Progress**: `progress.py` and `sessions.py` are **Complete** local primitives. The FastAPI app exposes process-local create and submit endpoints. Persistent learner storage is **Target (not built yet)**.
 
 ---
 
@@ -219,13 +224,13 @@ flowchart LR
     E --> F
 ```
 
-The experimental modules preserve the baseline collection. BGE vectors go to a different Qdrant collection, and BM25/RRF do not currently run inside `query.search`.
+The experimental modules preserve the baseline collection. BGE vectors go to a different Qdrant collection. BM25/RRF run through `query.search` only when `JOURNEY_RETRIEVAL_MODE=hybrid` is selected.
 
 **ONNX switch**: `query.search` uses the reranker only when `JOURNEY_ONNX_RERANKER_DIR` is set. It then retrieves at least 10 Qdrant candidates and returns the requested top-k reranked results.
 
-**Evaluation**: `evals/retrieval_cases.json` has three seed cases. `score_rankings` reports Recall@k, MRR, and NDCG@k for supplied rankings. It does not execute a live Qdrant benchmark by itself.
+**Evaluation**: `evals/retrieval_cases.json` has eight source-checked cases. `score_rankings` computes Recall@k, MRR, and NDCG@k for supplied rankings; `evaluate_live.py` obtains rankings from the running local baseline or hybrid path. See [DATASET.md](DATASET.md) for the limited local comparison and compatibility warning.
 
-**Status**: BGE builder, BM25, and RRF are **Complete** local components. Set `JOURNEY_RETRIEVAL_MODE=hybrid` before starting FastAPI to use the BGE + BM25 + RRF path. ONNX reranking remains **Partial** because it needs a local exported model. See [docs/retrieval-experiments.md](docs/retrieval-experiments.md) and [RUNTIME_PLAN.md](RUNTIME_PLAN.md).
+**Status**: BGE builder, BM25, and RRF are **Complete** local components. Set `JOURNEY_RETRIEVAL_MODE=hybrid` before starting FastAPI to use the BGE + BM25 + RRF path. ONNX reranking is **Complete locally** when an exported model is selected with `JOURNEY_ONNX_RERANKER_DIR`. See [docs/retrieval-experiments.md](docs/retrieval-experiments.md) and [RUNTIME_PLAN.md](RUNTIME_PLAN.md).
 
 Set `JOURNEY_LLM_MODEL` to select an installed Ollama answer and quiz model.
 See [MODEL_SELECTION.md](MODEL_SELECTION.md) for the local model benchmark command.
@@ -292,7 +297,7 @@ $env:JOURNEY_RETRIEVAL_MODE = "hybrid"
 .\venv\Scripts\python.exe mcp_server.py
 ```
 
-The HTTP API listens on the Uvicorn default `http://127.0.0.1:8000`; Swagger UI is at `/docs`. The MCP endpoint is `http://127.0.0.1:8001/mcp`.
+The HTTP API listens on the Uvicorn default `http://127.0.0.1:8000`; Swagger UI is at `/docs`. The learner-facing interactive interface is at `/app`. The MCP endpoint is `http://127.0.0.1:8001/mcp`.
 
 ---
 
@@ -304,6 +309,8 @@ The HTTP API listens on the Uvicorn default `http://127.0.0.1:8000`; Swagger UI 
 | `.\venv\Scripts\python.exe chunk_pdf.py` | Build `chunks.json` from `extracted_text.txt`. |
 | `.\venv\Scripts\python.exe ingest.py` | Embed chunks with Ollama and upload the baseline Qdrant collection. |
 | `.\venv\Scripts\python.exe bge_ingest.py` | Build the separate BGE Qdrant collection. |
+| `.\venv\Scripts\python.exe evaluate_live.py --mode baseline --top-k 5` | Score the running local baseline on the labeled cases. |
+| `.\venv\Scripts\python.exe evaluate_live.py --mode hybrid --top-k 5` | Score the experimental hybrid path on the same cases. |
 | `$env:JOURNEY_RETRIEVAL_MODE = "hybrid"` | Select the BGE + BM25 + RRF request path for the current PowerShell session. |
 | `.\venv\Scripts\python.exe -m uvicorn main:app --reload` | Run FastAPI locally. |
 | `.\venv\Scripts\python.exe mcp_server.py` | Run the local MCP server. |
@@ -347,7 +354,11 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8000/learn `
   -Body '{"question":"What is a scalar?","learning_goal":"Identify scalar values","quiz_size":3}'
 ```
 
-`/ask` returns `answer` and `citations`. `/learn` returns `explanation`, `citations`, `quiz`, and `next_action`. The current HTTP API does not expose a quiz-submission route.
+`/ask` returns `answer` and `citations`. `/learn` returns `explanation`, `citations`, `quiz`, and `next_action`. `/local-quiz-sessions` and `/local-quiz-sessions/{session_id}/submit` provide a process-local quiz-routing demonstration.
+
+### Interactive learner interface
+
+Open `http://127.0.0.1:8000/app`. The Ask button calls the real `/ask` endpoint and displays its cited answer. The quiz button runs the process-local quiz-session demonstration. This interface is for local demos; it does not persist student accounts or progress.
 
 ---
 
@@ -359,6 +370,7 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8000/learn `
 | Baseline Qdrant retrieval with Ollama embeddings | Complete. |
 | Grounded Ollama answer generation with citations | Complete. |
 | FastAPI `/ask`, `/learn`, `/health` | Complete. |
+| Interactive learner interface at `/app` | Complete locally. |
 | Read-only Streamable HTTP MCP server | Complete. |
 | Input/citation guards and in-memory limiter | Complete. |
 | Quiz JSON generation and deterministic progress routing | Partial; local session endpoints exist, but there is no persistent learner store. |

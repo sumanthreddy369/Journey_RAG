@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Journey | Intelligent Learning</title>
+    <link rel="stylesheet" href="/static/app.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <div class="brand"><span class="brand-mark">J</span><span>Journey</span></div>
+        <span class="status"><i></i> Local RAG ready</span>
+      </header>
+
+      <section class="intro">
+        <p class="eyebrow">INTELLIGENT TEXTBOOK</p>
+        <h1>Learn with answers you can trace.</h1>
+        <p class="lead">Ask a MATLAB question. Journey retrieves textbook passages, reranks them, and returns an answer with sources.</p>
+      </section>
+
+      <section class="workspace" aria-label="Question and answer workspace">
+        <div class="ask-card">
+          <div class="card-heading"><div><p class="eyebrow">ASK JOURNEY</p><h2>What are you studying?</h2></div><span class="pipeline">BGE + BM25 + ONNX</span></div>
+          <form id="ask-form">
+            <label for="question">Your question</label>
+            <textarea id="question" required maxlength="1000">What is the difference between a scalar and a vector in MATLAB?</textarea>
+            <div class="form-bottom"><span id="question-count">0 / 1000</span><button id="ask-button" type="submit"><span>Ask Journey</span><b>→</b></button></div>
+          </form>
+          <div class="examples"><span>Try an example:</span><button type="button" data-question="How do I create a matrix in MATLAB?">Create a matrix</button><button type="button" data-question="Explain vector operations in MATLAB.">Vector operations</button></div>
+        </div>
+
+        <aside class="side-card">
+          <p class="eyebrow">RETRIEVAL FLOW</p>
+          <ol class="flow"><li><span>01</span> Find textbook passages</li><li><span>02</span> Fuse semantic + keyword results</li><li><span>03</span> Rerank relevant context</li><li><span>04</span> Generate a cited explanation</li></ol>
+        </aside>
+      </section>
+
+      <section id="result" class="result hidden" aria-live="polite">
+        <div class="answer-card"><div class="result-title"><div><p class="eyebrow">GROUNDED ANSWER</p><h2>Journey’s explanation</h2></div><span id="answer-status" class="answer-status">Ready</span></div><article id="answer-text"></article></div>
+        <aside class="sources-card"><p class="eyebrow">TEXTBOOK SOURCES</p><div id="citations"></div></aside>
+      </section>
+
+      <section class="progress-card">
+        <div><p class="eyebrow">LEARNING PROGRESS</p><h2>Quiz routing demo</h2><p>Submit a sample quiz to see the deterministic next learning path.</p></div>
+        <button id="quiz-button" type="button">Run quiz demo <b>→</b></button>
+        <div id="quiz-result" class="quiz-result" aria-live="polite"></div>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
