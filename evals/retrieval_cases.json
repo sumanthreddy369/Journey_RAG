@@ -1,0 +1,5 @@
+[
+  {"question": "How do I convert degrees to radians in MATLAB?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:7:Problem 3-A.1:0"]},
+  {"question": "What is the difference between a scalar and a vector?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:9:Problem 3-A.4:3"]},
+  {"question": "How do I calculate a circle area in MATLAB?", "relevant_chunk_ids": ["MATLAB_JHS_1st_edition_SOLUTIONS.pdf:9:Problem 3-A.3:2"]}
+]
