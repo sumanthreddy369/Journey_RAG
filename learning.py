@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any, Callable
 
 import ollama
@@ -87,7 +88,7 @@ def generate_quiz(
 ) -> list[QuizItem]:
     """Create a structured quiz from an already grounded explanation."""
     response = chat(
-        model="llama3.2",
+        model=os.getenv("JOURNEY_LLM_MODEL", "llama3.2"),
         messages=[
             {
                 "role": "user",

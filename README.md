@@ -226,6 +226,9 @@ The experimental modules preserve the baseline collection. BGE vectors go to a d
 
 **Status**: BGE builder, BM25, and RRF are **Complete** local components. Set `JOURNEY_RETRIEVAL_MODE=hybrid` before starting FastAPI to use the BGE + BM25 + RRF path. ONNX reranking remains **Partial** because it needs a local exported model. See [docs/retrieval-experiments.md](docs/retrieval-experiments.md) and [RUNTIME_PLAN.md](RUNTIME_PLAN.md).
 
+Set `JOURNEY_LLM_MODEL` to select an installed Ollama answer and quiz model.
+See [MODEL_SELECTION.md](MODEL_SELECTION.md) for the local model benchmark command.
+
 ---
 
 ## Build requirements

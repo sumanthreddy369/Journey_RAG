@@ -71,7 +71,7 @@ Give a clear answer with any relevant MATLAB code."""
 
     # Generate answer
     response = ollama.chat(
-        model=LLM_MODEL,
+        model=os.getenv("JOURNEY_LLM_MODEL", LLM_MODEL),
         messages=[{"role": "user", "content": prompt}]
     )
     answer = response["message"]["content"]
