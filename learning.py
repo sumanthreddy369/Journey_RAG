@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from typing import Any, Callable
 
 import ollama
@@ -26,6 +27,12 @@ class QuizItem(BaseModel):
     source_problem_ids: list[str]
 
 
+class ScoredQuizItem(QuizItem):
+    """Internal quiz representation. The answer index must never reach a learner."""
+
+    correct_choice_index: int
+
+
 class LearningResponse(BaseModel):
     """A cited explanation and a quiz generated only from its grounded context."""
 
@@ -33,6 +40,14 @@ class LearningResponse(BaseModel):
     citations: list[dict[str, Any]]
     quiz: list[QuizItem]
     next_action: str
+
+
+@dataclass(frozen=True)
+class LearningSessionDraft:
+    """A learner-safe response plus an internal server-side answer key."""
+
+    response: LearningResponse
+    answer_key: list[int]
 
 
 class LearningServiceError(RuntimeError):
@@ -47,10 +62,30 @@ def _normalized_question(question: str) -> str:
 
 
 def _quiz_prompt(
-    *, explanation: str, citations: list[dict[str, Any]], learning_goal: str | None, quiz_size: int
+    *,
+    explanation: str,
+    citations: list[dict[str, Any]],
+    learning_goal: str | None,
+    quiz_size: int,
+    include_answer_key: bool = False,
 ) -> str:
     source_ids = [str(citation.get("problem_id", "Unknown source")) for citation in citations]
     goal = learning_goal or "Check conceptual understanding."
+    answer_instruction = (
+        'Add "correct_choice_index" to every quiz item. It must be a zero-based index into choices. '
+        if include_answer_key
+        else ""
+    )
+    ending_instruction = (
+        "Do not include explanations, grades, or markdown."
+        if include_answer_key
+        else "Do not include answers, explanations, grades, or markdown."
+    )
+    item_shape = (
+        '{"question":"...","choices":["...","..."],"source_problem_ids":["..."],"correct_choice_index":0}'
+        if include_answer_key
+        else '{"question":"...","choices":["...","..."],"source_problem_ids":["..."]}'
+    )
     return f"""You create learner-facing multiple-choice questions for a MATLAB course.
 Use only the grounded explanation and source identifiers below. Do not introduce facts that are not supported.
 
@@ -61,9 +96,9 @@ GROUNDED EXPLANATION:
 SOURCE PROBLEM IDS: {source_ids}
 
 Return valid JSON only, with this exact shape:
-{{"quiz":[{{"question":"...","choices":["...","...","...","..."],"source_problem_ids":["..."]}}]}}
+{{"quiz":[{item_shape}]}}
 
-Create exactly {quiz_size} questions. Each question needs two to four choices. Do not include answers, explanations, grades, or markdown."""
+{answer_instruction}Create exactly {quiz_size} questions. Each question needs two to four choices. {ending_instruction}"""
 
 
 def _parse_quiz(raw_content: str, expected_size: int) -> list[QuizItem]:
@@ -75,6 +110,21 @@ def _parse_quiz(raw_content: str, expected_size: int) -> list[QuizItem]:
 
     if len(quiz) != expected_size:
         raise LearningServiceError("The local model returned an unexpected number of quiz questions.")
+    return quiz
+
+
+def _parse_scored_quiz(raw_content: str, expected_size: int) -> list[ScoredQuizItem]:
+    try:
+        data = json.loads(raw_content)
+        quiz = [ScoredQuizItem.model_validate(item) for item in data["quiz"]]
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise LearningServiceError("The local model returned an invalid scored quiz payload.") from exc
+
+    if len(quiz) != expected_size:
+        raise LearningServiceError("The local model returned an unexpected number of quiz questions.")
+    for item in quiz:
+        if item.correct_choice_index < 0 or item.correct_choice_index >= len(item.choices):
+            raise LearningServiceError("The local model returned an invalid quiz answer index.")
     return quiz
 
 
@@ -109,6 +159,38 @@ def generate_quiz(
     return _parse_quiz(content, quiz_size)
 
 
+def generate_scored_quiz(
+    *,
+    explanation: str,
+    citations: list[dict[str, Any]],
+    learning_goal: str | None,
+    quiz_size: int,
+    chat: Callable[..., dict[str, Any]] = ollama.chat,
+) -> list[ScoredQuizItem]:
+    """Generate a quiz whose answer key is retained by the server only."""
+    response = chat(
+        model=os.getenv("JOURNEY_LLM_MODEL", "llama3.2"),
+        messages=[
+            {
+                "role": "user",
+                "content": _quiz_prompt(
+                    explanation=explanation,
+                    citations=citations,
+                    learning_goal=learning_goal,
+                    quiz_size=quiz_size,
+                    include_answer_key=True,
+                ),
+            }
+        ],
+        format="json",
+    )
+    try:
+        content = response["message"]["content"]
+    except (KeyError, TypeError) as exc:
+        raise LearningServiceError("The local model did not return scored quiz content.") from exc
+    return _parse_scored_quiz(content, quiz_size)
+
+
 def create_learning_response(
     request: LearningRequest,
     *,
@@ -133,5 +215,44 @@ def create_learning_response(
         explanation=explanation,
         citations=citations,
         quiz=quiz,
-        next_action="Submit quiz answers for evaluation in the next planned phase.",
+        next_action="Review the cited explanation, then complete the quiz.",
+    )
+
+
+def create_learning_session(
+    request: LearningRequest,
+    *,
+    answerer: Callable[[str], tuple[str, list[dict[str, Any]]] | tuple[Any, Any]] | None = None,
+    quiz_generator: Callable[..., list[ScoredQuizItem]] = generate_scored_quiz,
+) -> LearningSessionDraft:
+    """Create a real local learning session without exposing its answer key."""
+    question = _normalized_question(request.question)
+    if answerer is None:
+        from query import ask_journey
+
+        answerer = ask_journey
+
+    explanation, citations = answerer(question)
+    scored_quiz = quiz_generator(
+        explanation=explanation,
+        citations=citations,
+        learning_goal=request.learning_goal,
+        quiz_size=request.quiz_size,
+    )
+    public_quiz = [
+        QuizItem(
+            question=item.question,
+            choices=item.choices,
+            source_problem_ids=item.source_problem_ids,
+        )
+        for item in scored_quiz
+    ]
+    return LearningSessionDraft(
+        response=LearningResponse(
+            explanation=explanation,
+            citations=citations,
+            quiz=public_quiz,
+            next_action="Answer the quiz to receive a personalized next step.",
+        ),
+        answer_key=[item.correct_choice_index for item in scored_quiz],
     )

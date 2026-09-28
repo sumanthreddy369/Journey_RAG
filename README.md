@@ -354,7 +354,7 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8000/learn `
   -Body '{"question":"What is a scalar?","learning_goal":"Identify scalar values","quiz_size":3}'
 ```
 
-`/ask` returns `answer` and `citations`. `/learn` returns `explanation`, `citations`, `quiz`, and `next_action`. `/local-quiz-sessions` and `/local-quiz-sessions/{session_id}/submit` provide a process-local quiz-routing demonstration.
+`/ask` returns `answer` and `citations`. `/learn` returns an unscored explanation and quiz. `POST /learning-sessions` creates a model-generated quiz with its answer key held only in server memory; `POST /learning-sessions/{session_id}/submit` returns the deterministic `reteach`, `practice`, or `advance` route. The older `/local-quiz-sessions` endpoints remain a synthetic development demonstration.
 
 ### Interactive learner interface
 
@@ -373,7 +373,7 @@ Open `http://127.0.0.1:8000/app`. The Ask button calls the real `/ask` endpoint 
 | Interactive learner interface at `/app` | Complete locally. |
 | Read-only Streamable HTTP MCP server | Complete. |
 | Input/citation guards and in-memory limiter | Complete. |
-| Quiz JSON generation and deterministic progress routing | Partial; local session endpoints exist, but there is no persistent learner store. |
+| Model-generated quiz with server-side answer key and progress routing | Complete locally; sessions are process-local and not persistent. |
 | BGE collection builder | Complete locally; builds a separate collection when Qdrant is running. |
 | BM25 and Reciprocal Rank Fusion | Complete locally; selected with `JOURNEY_RETRIEVAL_MODE=hybrid`. |
 | ONNX reranker | Partial; adapter exists, local ONNX model is required. |

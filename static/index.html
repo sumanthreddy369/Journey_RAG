@@ -25,7 +25,7 @@
           <form id="ask-form">
             <label for="question">Your question</label>
             <textarea id="question" required maxlength="1000">What is the difference between a scalar and a vector in MATLAB?</textarea>
-            <div class="form-bottom"><span id="question-count">0 / 1000</span><button id="ask-button" type="submit"><span>Ask Journey</span><b>→</b></button></div>
+            <div class="form-bottom"><span id="question-count">0 / 1000</span><div class="actions"><button id="learn-button" type="button" class="secondary"><span>Start guided quiz</span></button><button id="ask-button" type="submit"><span>Ask Journey</span><b>→</b></button></div></div>
           </form>
           <div class="examples"><span>Try an example:</span><button type="button" data-question="How do I create a matrix in MATLAB?">Create a matrix</button><button type="button" data-question="Explain vector operations in MATLAB.">Vector operations</button></div>
         </div>
@@ -39,6 +39,12 @@
       <section id="result" class="result hidden" aria-live="polite">
         <div class="answer-card"><div class="result-title"><div><p class="eyebrow">GROUNDED ANSWER</p><h2>Journey’s explanation</h2></div><span id="answer-status" class="answer-status">Ready</span></div><article id="answer-text"></article></div>
         <aside class="sources-card"><p class="eyebrow">TEXTBOOK SOURCES</p><div id="citations"></div></aside>
+      </section>
+
+      <section id="quiz-section" class="quiz-card hidden" aria-live="polite">
+        <div class="result-title"><div><p class="eyebrow">KNOWLEDGE CHECK</p><h2>Test your understanding</h2></div><span id="quiz-status" class="answer-status">Quiz ready</span></div>
+        <form id="generated-quiz-form"></form>
+        <div id="generated-quiz-result" class="quiz-result"></div>
       </section>
 
       <section class="progress-card">

@@ -1,11 +1,16 @@
 const question = document.querySelector("#question");
 const askForm = document.querySelector("#ask-form");
 const askButton = document.querySelector("#ask-button");
+const learnButton = document.querySelector("#learn-button");
 const result = document.querySelector("#result");
 const answerText = document.querySelector("#answer-text");
 const citations = document.querySelector("#citations");
 const answerStatus = document.querySelector("#answer-status");
 const count = document.querySelector("#question-count");
+const quizSection = document.querySelector("#quiz-section");
+const quizForm = document.querySelector("#generated-quiz-form");
+const quizStatus = document.querySelector("#quiz-status");
+const generatedQuizResult = document.querySelector("#generated-quiz-result");
 
 function updateCount() { count.textContent = `${question.value.length} / 1000`; }
 updateCount();
@@ -19,6 +24,10 @@ function escapeHtml(value) {
   const element = document.createElement("div");
   element.textContent = value ?? "";
   return element.innerHTML;
+}
+
+function renderCitations(items) {
+  citations.innerHTML = items.map((citation, index) => `<div class="citation"><b>${String(index + 1).padStart(2, "0")}</b><div><strong>${escapeHtml(citation.problem_id || "Textbook passage")}</strong><span>${escapeHtml(citation.chapter || "Course material")} · Page ${escapeHtml(citation.page ?? "—")}</span></div></div>`).join("") || "<p>No citations returned.</p>";
 }
 
 askForm.addEventListener("submit", async (event) => {
@@ -37,13 +46,74 @@ askForm.addEventListener("submit", async (event) => {
     if (!response.ok) throw new Error(payload.detail || "The request could not be completed.");
     answerStatus.textContent = "Cited response";
     answerText.innerHTML = `<p>${escapeHtml(payload.answer).replaceAll("\n", "<br>")}</p>`;
-    citations.innerHTML = payload.citations.map((citation, index) => `<div class="citation"><b>${String(index + 1).padStart(2, "0")}</b><div><strong>${escapeHtml(citation.problem_id || "Textbook passage")}</strong><span>${escapeHtml(citation.chapter || "Course material")} · Page ${escapeHtml(citation.page ?? "—")}</span></div></div>`).join("") || "<p>No citations returned.</p>";
+    renderCitations(payload.citations);
   } catch (error) {
     answerStatus.textContent = "Request failed";
     answerText.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
   } finally {
     askButton.disabled = false;
     askButton.querySelector("span").textContent = "Ask Journey";
+  }
+});
+
+function renderGeneratedQuiz(payload) {
+  quizSection.classList.remove("hidden");
+  generatedQuizResult.classList.remove("visible");
+  generatedQuizResult.innerHTML = "";
+  quizStatus.textContent = `${payload.quiz.length} questions`;
+  quizForm.innerHTML = payload.quiz.map((item, questionIndex) => `<fieldset class="quiz-question"><legend><b>${questionIndex + 1}.</b> ${escapeHtml(item.question)}</legend>${item.choices.map((choice, choiceIndex) => `<label class="choice"><input type="radio" name="question-${questionIndex}" value="${choiceIndex}"><span>${escapeHtml(choice)}</span></label>`).join("")}</fieldset>`).join("") + '<button class="submit-quiz" type="submit">Check my answers <b>→</b></button>';
+  quizForm.onsubmit = async (event) => {
+    event.preventDefault();
+    const choices = payload.quiz.map((_, index) => quizForm.querySelector(`input[name="question-${index}"]:checked`));
+    if (choices.some((choice) => !choice)) {
+      generatedQuizResult.textContent = "Choose an answer for every question first.";
+      generatedQuizResult.classList.add("visible");
+      return;
+    }
+    const button = quizForm.querySelector("button");
+    button.disabled = true;
+    button.firstChild.textContent = "Checking… ";
+    try {
+      const response = await fetch(`/learning-sessions/${payload.session_id}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ selected_choice_indexes: choices.map((choice) => Number(choice.value)) }) });
+      const score = await response.json();
+      if (!response.ok) throw new Error(score.detail || "Quiz evaluation failed.");
+      generatedQuizResult.innerHTML = `<strong>${score.score_percent}% · ${escapeHtml(score.route)}</strong><span>${escapeHtml(score.next_action)}</span>`;
+      generatedQuizResult.classList.add("visible");
+      quizStatus.textContent = "Progress updated";
+    } catch (error) {
+      generatedQuizResult.textContent = error.message;
+      generatedQuizResult.classList.add("visible");
+    } finally {
+      button.disabled = false;
+      button.firstChild.textContent = "Check my answers ";
+    }
+  };
+}
+
+learnButton.addEventListener("click", async () => {
+  const text = question.value.trim();
+  if (!text) return;
+  learnButton.disabled = true;
+  learnButton.querySelector("span").textContent = "Building quiz…";
+  result.classList.remove("hidden");
+  quizSection.classList.add("hidden");
+  answerStatus.textContent = "Creating guided lesson";
+  answerText.innerHTML = "<p class='loading'>Retrieving cited context and generating a quiz…</p>";
+  citations.innerHTML = "";
+  try {
+    const response = await fetch("/learning-sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: text, quiz_size: 3 }) });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || "The learning session could not be created.");
+    answerStatus.textContent = "Cited lesson";
+    answerText.innerHTML = `<p>${escapeHtml(payload.explanation).replaceAll("\n", "<br>")}</p>`;
+    renderCitations(payload.citations);
+    renderGeneratedQuiz(payload);
+  } catch (error) {
+    answerStatus.textContent = "Request failed";
+    answerText.innerHTML = `<p class="error">${escapeHtml(error.message)}</p>`;
+  } finally {
+    learnButton.disabled = false;
+    learnButton.querySelector("span").textContent = "Start guided quiz";
   }
 });
 

@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from guardrails import GuardrailViolation, SlidingWindowRateLimiter, validate_citations, validate_question
-from learning import LearningRequest, LearningServiceError, create_learning_response
+from learning import LearningRequest, LearningServiceError, create_learning_response, create_learning_session
 from progress import QuizSubmission
 from query import ask_journey
 from sessions import LocalQuizSessionStore
@@ -59,6 +59,35 @@ def learn(learning_request: LearningRequest, request: Request):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except LearningServiceError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post("/learning-sessions")
+def create_learning_session_route(learning_request: LearningRequest, request: Request):
+    """Create a real local learning session and retain its answer key server-side."""
+    try:
+        learning_request.question = validate_question(learning_request.question)
+        rate_limiter.check(request.client.host if request.client else "local")
+        draft = create_learning_session(learning_request)
+        validate_citations(draft.response.citations)
+        session_id = quiz_sessions.create(draft.answer_key)
+        return {"session_id": session_id, **draft.response.model_dump()}
+    except GuardrailViolation as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except LearningServiceError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post("/learning-sessions/{session_id}/submit")
+def submit_learning_session(session_id: str, submission: QuizSubmission):
+    """Evaluate answers for a model-generated local learning session."""
+    try:
+        return quiz_sessions.evaluate(session_id, submission)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/local-quiz-sessions")
