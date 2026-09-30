@@ -115,7 +115,7 @@ The baseline stores up to 2,000 text characters and citation metadata per Qdrant
 
 ### Add one or many textbooks
 
-Journey has a generic pipeline for searchable PDF, TXT, Markdown, individual
+Journey has a generic pipeline for searchable PDF, DOCX, EPUB, TXT, Markdown, individual
 files, and directories. One command discovers every supported file recursively,
 extracts page text, creates overlapping chunks, embeds them with
 `nomic-embed-text`, and stores them in the separate versioned collection
@@ -137,8 +137,8 @@ shows the active stored-passage count after reload. Set
 Hybrid mode remains tied to its separately built BGE collection and does not run
 over the generic library.
 
-PDFs must contain extractable text. Image-only/scanned PDFs require OCR before
-ingestion. Password-protected or damaged files fail visibly rather than being
+Journey tries OCR on image-only PDF pages when the local Tesseract engine is
+installed. Password-protected or damaged files fail visibly rather than being
 reported as ready. File contents, paths, and extracted text are not committed to
 Git; Qdrant stores the extracted passages locally. See
 [multi-textbook ingestion](docs/multi-textbook-ingestion.md).
@@ -347,6 +347,7 @@ The setup script creates ignored local credentials in `.env.progress` and sets d
 | `.\venv\Scripts\python.exe chunk_pdf.py` | Build `chunks.json` from `extracted_text.txt`. |
 | `.\venv\Scripts\python.exe ingest.py` | Embed chunks with Ollama and upload the baseline Qdrant collection. |
 | `.\scripts\add-textbooks.ps1 <paths...>` | Extract, chunk, embed, and save one or many searchable textbooks in the generic library. |
+| `.\scripts\remove-textbooks.ps1 <paths...>` | Remove only the stored chunks associated with the supplied original source paths. |
 | `.\venv\Scripts\python.exe bge_ingest.py` | Build the separate BGE Qdrant collection. |
 | `.\venv\Scripts\python.exe evaluate_live.py --mode baseline --top-k 5` | Score the running local baseline on the labeled cases. |
 | `.\venv\Scripts\python.exe evaluate_live.py --mode hybrid --top-k 5` | Score the experimental hybrid path on the same cases. |
@@ -406,7 +407,7 @@ Open `http://127.0.0.1:8003/app`. Ask calls `/ask`; Start guided quiz creates a 
 | Feature | Status |
 | --- | --- |
 | PDF extraction and problem-level chunking | Complete for checked-in outputs; source PDF is absent. |
-| Generic multi-textbook ingestion | Complete for searchable PDF, TXT, and Markdown files and recursive directories; live-tested with two sources. |
+| Generic multi-textbook ingestion | Complete for searchable PDF, DOCX, EPUB, TXT, and Markdown files and recursive directories; OCR requires local Tesseract. |
 | Baseline Qdrant retrieval with Ollama embeddings | Complete. |
 | Grounded Ollama answer generation with citations | Complete. |
 | FastAPI `/ask`, `/learn`, `/health` | Complete. |

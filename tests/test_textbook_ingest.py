@@ -1,6 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
+from zipfile import ZipFile
 
 import pytest
 
@@ -11,6 +12,8 @@ from textbook_ingest import (
     chunk_text,
     discover_textbooks,
     ingest_textbooks,
+    extract_pages,
+    remove_textbooks,
 )
 
 
@@ -20,6 +23,7 @@ class FakeQdrant:
         self.vector_size = None
         self.deleted = []
         self.upserts = []
+        self.count_value = 0
 
     def collection_exists(self, collection_name):
         return self.exists
@@ -38,6 +42,9 @@ class FakeQdrant:
 
     def upsert(self, collection_name, points, wait):
         self.upserts.append((collection_name, points, wait))
+
+    def count(self, collection_name, count_filter, exact):
+        return SimpleNamespace(count=self.count_value)
 
 
 @pytest.fixture
@@ -103,3 +110,49 @@ def test_ingest_multiple_books_creates_library_and_replaces_each_source(workspac
     assert len(client.upserts) == 2
     ids = [point.id for _, points, _ in client.upserts for point in points]
     assert len(ids) == len(set(ids))
+
+
+def test_extract_docx_without_external_office_dependency(workspace_tmp_path):
+    path = workspace_tmp_path / "book.docx"
+    document = """<?xml version="1.0" encoding="UTF-8"?>
+    <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+      <w:body><w:p><w:r><w:t>First paragraph.</w:t></w:r></w:p>
+      <w:p><w:r><w:t>Second paragraph.</w:t></w:r></w:p></w:body>
+    </w:document>"""
+    with ZipFile(path, "w") as archive:
+        archive.writestr("word/document.xml", document)
+
+    pages = extract_pages(path)
+
+    assert pages == [TextbookPage(1, "First paragraph.\nSecond paragraph.")]
+
+
+def test_extract_epub_in_spine_order(workspace_tmp_path):
+    path = workspace_tmp_path / "book.epub"
+    container = """<?xml version="1.0"?>
+    <container><rootfiles><rootfile full-path="OPS/content.opf"/></rootfiles></container>"""
+    package = """<?xml version="1.0"?>
+    <package><manifest><item id="c1" href="chapter.xhtml"/></manifest>
+    <spine><itemref idref="c1"/></spine></package>"""
+    chapter = "<html><body><h1>Signals</h1><p>A signal carries information.</p></body></html>"
+    with ZipFile(path, "w") as archive:
+        archive.writestr("META-INF/container.xml", container)
+        archive.writestr("OPS/content.opf", package)
+        archive.writestr("OPS/chapter.xhtml", chapter)
+
+    pages = extract_pages(path)
+
+    assert pages == [TextbookPage(1, "Signals A signal carries information.")]
+
+
+def test_remove_textbook_uses_exact_source_key(workspace_tmp_path):
+    path = workspace_tmp_path / "remove-me.pdf"
+    client = FakeQdrant()
+    client.exists = True
+    client.count_value = 7
+
+    results = remove_textbooks([path], client=client)
+
+    assert results[0].source_name == "remove-me.pdf"
+    assert results[0].chunks == 7
+    assert len(client.deleted) == 1

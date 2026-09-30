@@ -17,8 +17,8 @@ exposes HTTP routes. `mcp_server.py` exposes read-only MCP tools.
   `docs/progress-history.md` for privacy constraints and real database tests.
 - `guardrails.py`: deterministic input, citation, and rate-limit checks.
 - `extract_pdf.py`, `chunk_pdf.py`, `ingest.py`: baseline corpus pipeline.
-- `textbook_ingest.py`: generic multi-book searchable PDF/text pipeline using
-  the separate `journey_textbooks_v1` collection.
+- `textbook_ingest.py`: generic multi-book PDF, DOCX, EPUB, and text pipeline
+  using the separate `journey_textbooks_v1` collection; OCR is optional.
 - `bge_ingest.py`, `retrieval.py`, `reranker.py`, `evaluation.py`: optional
   retrieval experiment components.
 - `mcp_server.py`: local Streamable HTTP MCP server.

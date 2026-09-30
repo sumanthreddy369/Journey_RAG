@@ -96,7 +96,9 @@ flowchart LR
     Select --> Answer[Grounded answer with book and page citations]
 ```
 
-This path accepts searchable PDF, TXT, and Markdown sources. It does not depend
+This path accepts searchable PDF, DOCX, EPUB, TXT, and Markdown sources. PDF OCR
+is attempted when the local Tesseract engine is present. It does not depend
 on MATLAB problem headings. The original collection remains intact, repeated
 ingestion replaces only the matching source, and the running API sees newly
-ingested books without a restart.
+ingested books without a restart. Explicit path-based removal affects only the
+selected source's chunks.
