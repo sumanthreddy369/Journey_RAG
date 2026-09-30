@@ -74,6 +74,8 @@ def textbook_topic(citations: list[dict]) -> str:
         label = citation.get("chapter_topic")
         if isinstance(label, str) and label in _topics() and len(label) <= 120:
             return label
+    if any(citation.get("set_desc") == "Textbook passage" for citation in citations):
+        return "General textbook study"
     return "MATLAB fundamentals"
 
 

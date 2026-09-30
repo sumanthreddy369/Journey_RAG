@@ -1,0 +1,2 @@
+Closed-loop feedback compares a measured output with a desired reference. The
+controller uses the error to adjust the system input.

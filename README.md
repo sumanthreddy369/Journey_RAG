@@ -34,6 +34,7 @@ Status: **in development**. The baseline is runnable locally. Retrieval experime
 ├── extract_pdf.py             # PDF to page text and extracted_text.txt
 ├── chunk_pdf.py               # Problem-level chunks and metadata
 ├── ingest.py                  # Baseline nomic embedding ingestion into Qdrant
+├── textbook_ingest.py         # Generic multi-book PDF/text extraction, chunking, and ingestion
 ├── bge_ingest.py              # Separate BGE collection builder
 ├── retrieval.py               # BM25 and Reciprocal Rank Fusion utilities
 ├── hybrid_retrieval.py        # Runnable BGE + BM25 + RRF retrieval mode
@@ -111,6 +112,36 @@ The baseline stores up to 2,000 text characters and citation metadata per Qdrant
 **Failure handling**: `ingest.py` catches an embedding error per chunk, prints it, and continues. It does not delete existing Qdrant points.
 
 **Status**: **Complete** as a script. It requires a running Qdrant service and an Ollama model named `nomic-embed-text`.
+
+### Add one or many textbooks
+
+Journey has a generic pipeline for searchable PDF, TXT, Markdown, individual
+files, and directories. One command discovers every supported file recursively,
+extracts page text, creates overlapping chunks, embeds them with
+`nomic-embed-text`, and stores them in the separate versioned collection
+`journey_textbooks_v1`:
+
+```powershell
+.\scripts\add-textbooks.ps1 "C:\Books\book-one.pdf" "C:\Books\Course Folder"
+```
+
+Reingesting the same local path replaces that book's prior chunks. Other books
+remain in the collection, so the command can be run repeatedly as the library
+grows. Stable UUID point IDs prevent collisions between books. Uploads are
+batched, and the original `journey_textbook` collection is never modified.
+
+Once `journey_textbooks_v1` contains passages, the baseline answer path selects
+it automatically on each request; an API restart is unnecessary. The learner UI
+shows the active stored-passage count after reload. Set
+`JOURNEY_COLLECTION=journey_textbook` to force the original MATLAB collection.
+Hybrid mode remains tied to its separately built BGE collection and does not run
+over the generic library.
+
+PDFs must contain extractable text. Image-only/scanned PDFs require OCR before
+ingestion. Password-protected or damaged files fail visibly rather than being
+reported as ready. File contents, paths, and extracted text are not committed to
+Git; Qdrant stores the extracted passages locally. See
+[multi-textbook ingestion](docs/multi-textbook-ingestion.md).
 
 ---
 
@@ -315,6 +346,7 @@ The setup script creates ignored local credentials in `.env.progress` and sets d
 | `.\venv\Scripts\python.exe extract_pdf.py` | Extract the hard-coded PDF name into `extracted_text.txt` and `pages.json`; requires a local PDF not tracked here. |
 | `.\venv\Scripts\python.exe chunk_pdf.py` | Build `chunks.json` from `extracted_text.txt`. |
 | `.\venv\Scripts\python.exe ingest.py` | Embed chunks with Ollama and upload the baseline Qdrant collection. |
+| `.\scripts\add-textbooks.ps1 <paths...>` | Extract, chunk, embed, and save one or many searchable textbooks in the generic library. |
 | `.\venv\Scripts\python.exe bge_ingest.py` | Build the separate BGE Qdrant collection. |
 | `.\venv\Scripts\python.exe evaluate_live.py --mode baseline --top-k 5` | Score the running local baseline on the labeled cases. |
 | `.\venv\Scripts\python.exe evaluate_live.py --mode hybrid --top-k 5` | Score the experimental hybrid path on the same cases. |
@@ -374,6 +406,7 @@ Open `http://127.0.0.1:8003/app`. Ask calls `/ask`; Start guided quiz creates a 
 | Feature | Status |
 | --- | --- |
 | PDF extraction and problem-level chunking | Complete for checked-in outputs; source PDF is absent. |
+| Generic multi-textbook ingestion | Complete for searchable PDF, TXT, and Markdown files and recursive directories; live-tested with two sources. |
 | Baseline Qdrant retrieval with Ollama embeddings | Complete. |
 | Grounded Ollama answer generation with citations | Complete. |
 | FastAPI `/ask`, `/learn`, `/health` | Complete. |

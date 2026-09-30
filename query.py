@@ -4,17 +4,42 @@ from qdrant_client import QdrantClient
 from reranker import configured_reranker
 from query_rewrite import rewrite_query
 
-COLLECTION  = "journey_textbook"
+BASELINE_COLLECTION = "journey_textbook"
+LIBRARY_COLLECTION = "journey_textbooks_v1"
 EMBED_MODEL = "nomic-embed-text"
 LLM_MODEL   = "llama3.2"
 QDRANT_URL  = "http://localhost:6333"
 
 client = QdrantClient(url=QDRANT_URL)
 
+
+def active_collection() -> str:
+    """Use an explicit collection, otherwise prefer an ingested multi-book library."""
+    configured = os.getenv("JOURNEY_COLLECTION")
+    if configured:
+        return configured
+    if client.collection_exists(LIBRARY_COLLECTION):
+        if client.get_collection(LIBRARY_COLLECTION).points_count > 0:
+            return LIBRARY_COLLECTION
+    return BASELINE_COLLECTION
+
+
+def library_status() -> dict[str, int | str]:
+    """Report the collection that new baseline requests will search."""
+    collection = active_collection()
+    info = client.get_collection(collection)
+    return {"collection": collection, "points": int(info.points_count)}
+
 def search(question, top_k=3):
     """Retrieve passages and optionally rerank them with a local ONNX model."""
     question = rewrite_query(question)
-    if os.getenv("JOURNEY_RETRIEVAL_MODE", "baseline").lower() == "hybrid":
+    collection = active_collection()
+    configured_collection = os.getenv("JOURNEY_COLLECTION")
+    hybrid_selected = os.getenv("JOURNEY_RETRIEVAL_MODE", "baseline").lower() == "hybrid"
+    if hybrid_selected and (
+        collection == BASELINE_COLLECTION
+        and configured_collection in {None, BASELINE_COLLECTION}
+    ):
         from hybrid_retrieval import hybrid_search
 
         return hybrid_search(question, top_k=top_k)
@@ -27,7 +52,7 @@ def search(question, top_k=3):
     # A reranker needs a wider candidate pool than the final answer uses.
     candidate_limit = max(top_k, 10) if reranker else top_k
     results = client.query_points(
-        collection_name=COLLECTION,
+        collection_name=collection,
         query=vec,
         limit=candidate_limit,
         with_payload=True
@@ -43,28 +68,33 @@ def ask_journey(question):
     context = ""
     citations = []
     for h in hits:
-        p = h.payload
-        context += f"\n[{p['problem_id']} | Ch{p['chapter']} | Page {p['page_number']}]\n"
-        context += p["text"][:1500] + "\n"
+        p = h.payload or {}
+        passage_id = str(p.get("problem_id") or p.get("source_name") or "Textbook passage")
+        page_number = p.get("page_number", 0)
+        source_name = str(p.get("source_name") or p.get("source_pdf") or "Textbook")
+        context += f"\n[{passage_id} | {source_name} | Page {page_number}]\n"
+        context += str(p.get("text", ""))[:1500] + "\n"
         citations.append({
-            "problem_id":    p["problem_id"],
-            "chapter":       p["chapter"],
-            "chapter_topic": p["chapter_topic"],
-            "page":          p["page_number"],
-            "set_desc":      p["set_desc"],
+            "problem_id": passage_id,
+            "chapter": p.get("chapter", ""),
+            "chapter_topic": p.get("chapter_topic", source_name),
+            "page": page_number,
+            "set_desc": p.get("set_desc", "Textbook passage"),
+            "source_name": source_name,
         })
 
     # Build prompt
-    prompt = f"""You are Journey, an AI tutor for MATLAB programming.
+    prompt = f"""You are Journey, an AI textbook tutor.
 Use ONLY the textbook content below to answer the student's question.
-Be clear, helpful and precise. Show MATLAB code when relevant.
+Be clear, helpful, and precise. Match the subject and terminology of the supplied textbooks.
+If the supplied context does not contain the answer, say that the textbooks do not provide enough information.
 
 TEXTBOOK CONTENT:
 {context}
 
 STUDENT QUESTION: {question}
 
-Give a clear answer with any relevant MATLAB code."""
+Give a clear answer and include code only when it is relevant to the textbook material."""
 
     # Generate answer
     response = ollama.chat(

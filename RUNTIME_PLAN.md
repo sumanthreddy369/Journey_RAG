@@ -11,7 +11,8 @@ The baseline learning workflow is live and verified locally:
 | FastAPI/UI | Running at `127.0.0.1:8003`; real answer, quiz, submission, and history APIs exercised. |
 | PostgreSQL | Docker `journey-progress-postgres-1` healthy on `127.0.0.1:5435`; history survived an API restart. |
 | End-to-end result | Three-question quiz created, answer key absent from response, 33% routed to `reteach`, and history grew from five to six rows. |
-| Tests | **48 passed**, including real PostgreSQL migration and API tests. |
+| Generic library | Two-source live test extracted, chunked, embedded, stored, and answered with a source/page citation in `journey_textbooks_test_v1`. |
+| Tests | **57 passed**, including real PostgreSQL migration and API tests. |
 
 Ollama quiz output is constrained with a JSON schema and retried once if semantic
 validation still fails. The expected source PDF and ONNX export remain absent.

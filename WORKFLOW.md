@@ -82,3 +82,21 @@ flowchart TD
 
 The baseline question-to-history workflow is working end to end. Hybrid retrieval,
 ONNX reranking, and MCP remain separate optional runtime checks.
+
+## Generic multi-book workflow
+
+```mermaid
+flowchart LR
+    Inputs[One or many files and folders] --> Discover[Recursive supported-file discovery]
+    Discover --> Extract[Page-aware PDF or text extraction]
+    Extract --> Chunk[Generic overlapping chunks]
+    Chunk --> Embed[Local nomic embeddings]
+    Embed --> Library[Qdrant journey_textbooks_v1]
+    Library --> Select[Automatic active collection]
+    Select --> Answer[Grounded answer with book and page citations]
+```
+
+This path accepts searchable PDF, TXT, and Markdown sources. It does not depend
+on MATLAB problem headings. The original collection remains intact, repeated
+ingestion replaces only the matching source, and the running API sees newly
+ingested books without a restart.

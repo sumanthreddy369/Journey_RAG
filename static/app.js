@@ -11,10 +11,24 @@ const quizSection = document.querySelector("#quiz-section");
 const quizForm = document.querySelector("#generated-quiz-form");
 const quizStatus = document.querySelector("#quiz-status");
 const generatedQuizResult = document.querySelector("#generated-quiz-result");
+const pipelineStatus = document.querySelector(".pipeline");
 
 function updateCount() { count.textContent = `${question.value.length} / 1000`; }
 updateCount();
 question.addEventListener("input", updateCount);
+
+async function loadLibraryStatus() {
+  try {
+    const response = await fetch("/library-status");
+    const payload = await response.json();
+    if (!response.ok) throw new Error();
+    pipelineStatus.textContent = `${payload.points} saved passages`;
+    pipelineStatus.title = `Active collection: ${payload.collection}`;
+  } catch {
+    pipelineStatus.textContent = "Library unavailable";
+  }
+}
+loadLibraryStatus();
 
 document.querySelectorAll("[data-question]").forEach((button) => {
   button.addEventListener("click", () => { question.value = button.dataset.question; updateCount(); question.focus(); });

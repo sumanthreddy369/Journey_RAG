@@ -32,6 +32,7 @@ def test_topic_is_taken_only_from_corpus_labels():
     topic = next(iter(history._topics()))
     assert history.textbook_topic([{"chapter_topic": topic}]) == topic
     assert history.textbook_topic([{"chapter_topic": "My name is Private Person"}]) == "MATLAB fundamentals"
+    assert history.textbook_topic([{"chapter_topic": "Private filename", "set_desc": "Textbook passage"}]) == "General textbook study"
 
 
 def test_history_disabled_and_pagination_validation():

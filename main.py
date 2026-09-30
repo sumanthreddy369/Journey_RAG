@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from guardrails import GuardrailViolation, SlidingWindowRateLimiter, validate_citations, validate_question
 from learning import LearningRequest, LearningServiceError, create_learning_response, create_learning_session
 from progress import QuizEvaluation, QuizSubmission
-from query import ask_journey
+from query import ask_journey, library_status
 from sessions import LocalQuizSessionStore
 from progress_history import HistoryEntry, HistoryUnavailable, read_progress, save_progress, textbook_topic
 
@@ -39,6 +39,11 @@ class LocalQuizSessionRequest(BaseModel):
 class LearningSessionEvaluation(QuizEvaluation):
     progress_saved: bool
     progress_message: str
+
+
+class LibraryStatus(BaseModel):
+    collection: str
+    points: int
 
 @app.post("/ask")
 def ask(q: Question, request: Request):
@@ -120,6 +125,15 @@ def progress_history(limit: int = Query(default=20, ge=1, le=100),
         return read_progress(limit, offset)
     except HistoryUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get("/library-status", response_model=LibraryStatus)
+def get_library_status() -> LibraryStatus:
+    """Return the active textbook collection and its stored passage count."""
+    try:
+        return LibraryStatus(**library_status())
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="The local textbook library is unavailable.") from exc
 
 
 @app.post("/local-quiz-sessions")
