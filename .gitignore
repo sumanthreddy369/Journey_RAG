@@ -38,6 +38,8 @@ langfuse_data/
 *.sqlite
 *.sqlite3
 learner_data/
+postgres_data/
+.env.*
 
 # Jupyter and tooling checkpoints
 .ipynb_checkpoints/

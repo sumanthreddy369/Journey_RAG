@@ -12,6 +12,9 @@ exposes HTTP routes. `mcp_server.py` exposes read-only MCP tools.
 - `query.py`: baseline Qdrant retrieval and grounded Ollama answer generation.
 - `learning.py`, `progress.py`, `sessions.py`: local learning, quiz, and
   in-memory session primitives.
+- `progress_history.py`, `migrations/`, `compose.progress.yaml`: optional
+  loopback PostgreSQL history with five anonymous fields; see
+  `docs/progress-history.md` for privacy constraints and real database tests.
 - `guardrails.py`: deterministic input, citation, and rate-limit checks.
 - `extract_pdf.py`, `chunk_pdf.py`, `ingest.py`: baseline corpus pipeline.
 - `bge_ingest.py`, `retrieval.py`, `reranker.py`, `evaluation.py`: optional

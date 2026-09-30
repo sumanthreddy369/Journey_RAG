@@ -35,9 +35,6 @@ def search(question, top_k=3):
     return reranker.rerank(question, results, top_k) if reranker else results
 
 def ask_journey(question):
-    print(f"\n{'='*60}")
-    print(f"QUESTION: {question}")
-    print('='*60)
 
     # Find relevant chunks
     hits = search(question)
@@ -75,12 +72,6 @@ Give a clear answer with any relevant MATLAB code."""
         messages=[{"role": "user", "content": prompt}]
     )
     answer = response["message"]["content"]
-
-    print("\nANSWER:")
-    print(answer)
-    print("\nSOURCES:")
-    for c in citations:
-        print(f"  - {c['problem_id']} | Ch{c['chapter']}: {c['chapter_topic']} | Page {c['page']} | {c['set_desc']}")
 
     return answer, citations
 

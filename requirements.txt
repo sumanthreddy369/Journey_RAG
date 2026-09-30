@@ -20,3 +20,8 @@ optimum[onnxruntime]>=2.1,<3
 
 # Versioned BGE collection builder for retrieval experiments.
 sentence-transformers>=3.0,<4
+
+# Optional local anonymous progress database.
+SQLAlchemy>=2.0,<3
+psycopg[binary]>=3.2,<4
+alembic>=1.13,<2

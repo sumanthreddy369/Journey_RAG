@@ -10,6 +10,8 @@ from typing import Any, Callable
 import ollama
 from pydantic import BaseModel, Field
 
+QUIZ_GENERATION_ATTEMPTS = 2
+
 
 class LearningRequest(BaseModel):
     """A topic the learner wants explained and assessed."""
@@ -52,6 +54,46 @@ class LearningSessionDraft:
 
 class LearningServiceError(RuntimeError):
     """Raised when a local model cannot return a valid learner-facing quiz."""
+
+
+def _quiz_json_schema(quiz_size: int, *, include_answer_key: bool) -> dict[str, Any]:
+    """Constrain Ollama output before applying the Pydantic and semantic checks."""
+    properties: dict[str, Any] = {
+        "question": {"type": "string", "minLength": 1},
+        "choices": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {"type": "string"},
+        },
+        "source_problem_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string"},
+        },
+    }
+    required = ["question", "choices", "source_problem_ids"]
+    if include_answer_key:
+        properties["correct_choice_index"] = {"type": "integer", "minimum": 0}
+        required.append("correct_choice_index")
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "quiz": {
+                "type": "array",
+                "minItems": quiz_size,
+                "maxItems": quiz_size,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": properties,
+                    "required": required,
+                },
+            }
+        },
+        "required": ["quiz"],
+    }
 
 
 def _normalized_question(question: str) -> str:
@@ -137,26 +179,35 @@ def generate_quiz(
     chat: Callable[..., dict[str, Any]] = ollama.chat,
 ) -> list[QuizItem]:
     """Create a structured quiz from an already grounded explanation."""
-    response = chat(
-        model=os.getenv("JOURNEY_LLM_MODEL", "llama3.2"),
-        messages=[
-            {
-                "role": "user",
-                "content": _quiz_prompt(
-                    explanation=explanation,
-                    citations=citations,
-                    learning_goal=learning_goal,
-                    quiz_size=quiz_size,
-                ),
-            }
-        ],
-        format="json",
+    prompt = _quiz_prompt(
+        explanation=explanation,
+        citations=citations,
+        learning_goal=learning_goal,
+        quiz_size=quiz_size,
     )
-    try:
-        content = response["message"]["content"]
-    except (KeyError, TypeError) as exc:
-        raise LearningServiceError("The local model did not return quiz content.") from exc
-    return _parse_quiz(content, quiz_size)
+    last_error: LearningServiceError | None = None
+    for attempt in range(QUIZ_GENERATION_ATTEMPTS):
+        messages = [{"role": "user", "content": prompt}]
+        if attempt:
+            messages.append({
+                "role": "user",
+                "content": "The previous response failed validation. Return only valid JSON in the exact requested shape.",
+            })
+        response = chat(
+            model=os.getenv("JOURNEY_LLM_MODEL", "llama3.2"),
+            messages=messages,
+            format=_quiz_json_schema(quiz_size, include_answer_key=False),
+        )
+        try:
+            content = response["message"]["content"]
+            return _parse_quiz(content, quiz_size)
+        except (KeyError, TypeError) as exc:
+            last_error = LearningServiceError("The local model did not return quiz content.")
+            last_error.__cause__ = exc
+        except LearningServiceError as exc:
+            last_error = exc
+    assert last_error is not None
+    raise last_error
 
 
 def generate_scored_quiz(
@@ -168,27 +219,36 @@ def generate_scored_quiz(
     chat: Callable[..., dict[str, Any]] = ollama.chat,
 ) -> list[ScoredQuizItem]:
     """Generate a quiz whose answer key is retained by the server only."""
-    response = chat(
-        model=os.getenv("JOURNEY_LLM_MODEL", "llama3.2"),
-        messages=[
-            {
-                "role": "user",
-                "content": _quiz_prompt(
-                    explanation=explanation,
-                    citations=citations,
-                    learning_goal=learning_goal,
-                    quiz_size=quiz_size,
-                    include_answer_key=True,
-                ),
-            }
-        ],
-        format="json",
+    prompt = _quiz_prompt(
+        explanation=explanation,
+        citations=citations,
+        learning_goal=learning_goal,
+        quiz_size=quiz_size,
+        include_answer_key=True,
     )
-    try:
-        content = response["message"]["content"]
-    except (KeyError, TypeError) as exc:
-        raise LearningServiceError("The local model did not return scored quiz content.") from exc
-    return _parse_scored_quiz(content, quiz_size)
+    last_error: LearningServiceError | None = None
+    for attempt in range(QUIZ_GENERATION_ATTEMPTS):
+        messages = [{"role": "user", "content": prompt}]
+        if attempt:
+            messages.append({
+                "role": "user",
+                "content": "The previous response failed validation. Return only valid JSON in the exact requested shape, including every correct_choice_index.",
+            })
+        response = chat(
+            model=os.getenv("JOURNEY_LLM_MODEL", "llama3.2"),
+            messages=messages,
+            format=_quiz_json_schema(quiz_size, include_answer_key=True),
+        )
+        try:
+            content = response["message"]["content"]
+            return _parse_scored_quiz(content, quiz_size)
+        except (KeyError, TypeError) as exc:
+            last_error = LearningServiceError("The local model did not return scored quiz content.")
+            last_error.__cause__ = exc
+        except LearningServiceError as exc:
+            last_error = exc
+    assert last_error is not None
+    raise last_error
 
 
 def create_learning_response(

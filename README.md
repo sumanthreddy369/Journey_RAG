@@ -1,8 +1,8 @@
-# Journey Intelligent Textbook / Agentic Learning Platform
+# Journey RAG — Interactive Hybrid Learning Platform
 
 Local Retrieval-Augmented Generation pipeline for the Journey adaptive textbook platform (CS-ERG, Michigan Tech). It retrieves MATLAB textbook chunks from Qdrant, builds a cited context, and asks a local Ollama model for an answer.
 
-The same baseline is available through FastAPI and a local MCP server. Separate modules provide unconnected BGE, BM25, RRF, evaluation, and ONNX reranking experiments.
+The same baseline is available through FastAPI and a local MCP server. Hybrid mode connects BGE, BM25, and RRF to the request path, with optional ONNX reranking. PostgreSQL can store anonymous quiz progress locally.
 
 > **Current status:** the runnable baseline uses PDF extraction, textbook chunks,
 > Ollama `nomic-embed-text`, Qdrant, Ollama `llama3.2`, FastAPI, and MCP. A
@@ -139,7 +139,7 @@ The API validates the learner question before it calls an external service. `que
 
 **Citation rule**: every response must contain at least one citation with `problem_id` and `page`; otherwise the request returns HTTP 400.
 
-**Status**: **Complete** for local HTTP use. CORS currently allows all origins.
+**Status**: Implemented for local HTTP use. CORS allows the local port-8003 UI origins. `/health` reports application liveness, not model or database readiness.
 
 ---
 
@@ -167,7 +167,7 @@ Quiz generation starts from the cited explanation instead of directly from an un
 
 **Schema checks**: quiz JSON must contain the requested number of questions, with two to four choices per question. Invalid model JSON raises `LearningServiceError` and `/learn` maps it to HTTP 503.
 
-**Progress**: `progress.py` and `sessions.py` are **Complete** local primitives. The FastAPI app exposes process-local create and submit endpoints. Persistent learner storage is **Target (not built yet)**.
+**Progress**: `progress.py` scores quizzes, while `sessions.py` keeps answer keys and the first completed attempt in memory. Optional PostgreSQL history stores five anonymous fields after scoring. See [local progress setup](docs/progress-history.md). Answer keys and unfinished sessions are lost on restart.
 
 ---
 
@@ -230,7 +230,7 @@ The experimental modules preserve the baseline collection. BGE vectors go to a d
 
 **Evaluation**: `evals/retrieval_cases.json` has eight source-checked cases. `score_rankings` computes Recall@k, MRR, and NDCG@k for supplied rankings; `evaluate_live.py` obtains rankings from the running local baseline or hybrid path. See [DATASET.md](DATASET.md) for the limited local comparison and compatibility warning.
 
-**Status**: BGE builder, BM25, and RRF are **Complete** local components. Set `JOURNEY_RETRIEVAL_MODE=hybrid` before starting FastAPI to use the BGE + BM25 + RRF path. ONNX reranking is **Complete locally** when an exported model is selected with `JOURNEY_ONNX_RERANKER_DIR`. See [docs/retrieval-experiments.md](docs/retrieval-experiments.md) and [RUNTIME_PLAN.md](RUNTIME_PLAN.md).
+**Status**: BGE builder, BM25, and RRF are implemented. Set `JOURNEY_RETRIEVAL_MODE=hybrid` before starting FastAPI to use that path. ONNX reranking requires a compatible local export selected with `JOURNEY_ONNX_RERANKER_DIR`; no export was found during this checkout's inspection. See [docs/retrieval-experiments.md](docs/retrieval-experiments.md) and [RUNTIME_PLAN.md](RUNTIME_PLAN.md) for runtime verification limits.
 
 Set `JOURNEY_LLM_MODEL` to select an installed Ollama answer and quiz model.
 See [MODEL_SELECTION.md](MODEL_SELECTION.md) for the local model benchmark command.
@@ -281,14 +281,14 @@ ollama pull llama3.2
 4. Start the HTTP API:
 
 ```powershell
-.\venv\Scripts\python.exe -m uvicorn main:app --reload
+.\venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8003 --no-access-log
 ```
 
 To demonstrate BGE + BM25 + RRF instead of the baseline Qdrant-only path:
 
 ```powershell
 $env:JOURNEY_RETRIEVAL_MODE = "hybrid"
-.\venv\Scripts\python.exe -m uvicorn main:app --reload
+.\venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8003 --no-access-log
 ```
 
 5. Start the MCP server in a separate terminal:
@@ -297,7 +297,14 @@ $env:JOURNEY_RETRIEVAL_MODE = "hybrid"
 .\venv\Scripts\python.exe mcp_server.py
 ```
 
-The HTTP API listens on the Uvicorn default `http://127.0.0.1:8000`; Swagger UI is at `/docs`. The learner-facing interactive interface is at `/app`. The MCP endpoint is `http://127.0.0.1:8001/mcp`.
+Use the explicit loopback command below for this checkout. Swagger UI is at `http://127.0.0.1:8003/docs`, and the learner interface is at `http://127.0.0.1:8003/app`. The MCP endpoint is `http://127.0.0.1:8001/mcp` when started separately.
+
+```powershell
+.\scripts\start-progress.ps1  # Optional: starts PostgreSQL and applies migrations
+.\venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8003 --no-access-log
+```
+
+The setup script creates ignored local credentials in `.env.progress` and sets database environment variables in the current shell. Omit it to leave persistence disabled. Do not run multiple API workers: quiz sessions are process-local. See [progress history](docs/progress-history.md) for storage, privacy, and testing details.
 
 ---
 
@@ -312,7 +319,7 @@ The HTTP API listens on the Uvicorn default `http://127.0.0.1:8000`; Swagger UI 
 | `.\venv\Scripts\python.exe evaluate_live.py --mode baseline --top-k 5` | Score the running local baseline on the labeled cases. |
 | `.\venv\Scripts\python.exe evaluate_live.py --mode hybrid --top-k 5` | Score the experimental hybrid path on the same cases. |
 | `$env:JOURNEY_RETRIEVAL_MODE = "hybrid"` | Select the BGE + BM25 + RRF request path for the current PowerShell session. |
-| `.\venv\Scripts\python.exe -m uvicorn main:app --reload` | Run FastAPI locally. |
+| `.\venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8003 --no-access-log` | Run FastAPI locally. |
 | `.\venv\Scripts\python.exe mcp_server.py` | Run the local MCP server. |
 | `.\venv\Scripts\python.exe -m pytest -q` | Run the pytest suite. |
 
@@ -335,13 +342,13 @@ Read [ONNX_RERANKING.md](ONNX_RERANKING.md) before enabling a cross-encoder.
 Health check:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8000/health
+Invoke-RestMethod http://127.0.0.1:8003/health
 ```
 
 Ask a grounded textbook question:
 
 ```powershell
-Invoke-RestMethod -Method Post http://127.0.0.1:8000/ask `
+Invoke-RestMethod -Method Post http://127.0.0.1:8003/ask `
   -ContentType 'application/json' `
   -Body '{"question":"How do I convert degrees to radians in MATLAB?"}'
 ```
@@ -349,7 +356,7 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8000/ask `
 Request an explanation and quiz:
 
 ```powershell
-Invoke-RestMethod -Method Post http://127.0.0.1:8000/learn `
+Invoke-RestMethod -Method Post http://127.0.0.1:8003/learn `
   -ContentType 'application/json' `
   -Body '{"question":"What is a scalar?","learning_goal":"Identify scalar values","quiz_size":3}'
 ```
@@ -358,7 +365,7 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8000/learn `
 
 ### Interactive learner interface
 
-Open `http://127.0.0.1:8000/app`. The Ask button calls the real `/ask` endpoint and displays its cited answer. The quiz button runs the process-local quiz-session demonstration. This interface is for local demos; it does not persist student accounts or progress.
+Open `http://127.0.0.1:8003/app`. Ask calls `/ask`; Start guided quiz creates a generated learning session with a hidden server-side answer key. The first valid submission completes the quiz. With PostgreSQL enabled, the history panel shows saved anonymous attempts, supports refresh and pagination, and reports unavailable storage. The separate quiz-routing demo is synthetic and does not write history. No student accounts are implemented.
 
 ---
 
@@ -374,6 +381,7 @@ Open `http://127.0.0.1:8000/app`. The Ask button calls the real `/ask` endpoint 
 | Read-only Streamable HTTP MCP server | Complete. |
 | Input/citation guards and in-memory limiter | Complete. |
 | Model-generated quiz with server-side answer key and progress routing | Complete locally; sessions are process-local and not persistent. |
+| Anonymous PostgreSQL progress history | Implemented with SQLAlchemy, psycopg, Alembic, and an interactive history panel; opt-in and local only. See runtime verification in RUNTIME_PLAN.md. |
 | BGE collection builder | Complete locally; builds a separate collection when Qdrant is running. |
 | BM25 and Reciprocal Rank Fusion | Complete locally; selected with `JOURNEY_RETRIEVAL_MODE=hybrid`. |
 | ONNX reranker | Partial; adapter exists, local ONNX model is required. |

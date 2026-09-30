@@ -25,10 +25,10 @@ This document records which technologies fit the next Journey RAG phases. A list
 
 | Technology | Role | Adoption rule |
 |---|---|---|
-| PostgreSQL | Durable learner-progress records and analytics | Use only after the student-data policy and retention requirements are approved. |
-| SQLAlchemy 2.x | Typed persistence and asynchronous database access | Add with PostgreSQL and repository-level integration tests. |
-| Alembic | Versioned schema migrations | Add when the first persistent schema is introduced. |
-| psycopg 3.x | PostgreSQL driver | Use through SQLAlchemy; do not use raw SQL for normal application paths. |
+| PostgreSQL | Anonymous local quiz history | Implemented for five approved fields only; no identities or analytics. See docs/progress-history.md. |
+| SQLAlchemy 2.x | Synchronous persistence in FastAPI worker threads | Implemented with bounded connections and PostgreSQL integration tests. Async database access is not implemented. |
+| Alembic | Versioned schema migrations | Initial anonymous progress migration implemented and tested. |
+| psycopg 3.x | PostgreSQL driver | Used through SQLAlchemy for local progress history. |
 | Advanced SQL | Progress trends, mastery history, and aggregate analytics | Add only to approved, privacy-reviewed reporting queries. |
 | Timezone normalization | Consistent attempt timestamps | Store timestamps in UTC and convert only for display. |
 
@@ -65,7 +65,7 @@ This document records which technologies fit the next Journey RAG phases. A list
 2. Add BM25 retrieval and Reciprocal Rank Fusion behind an evaluation comparison.
 3. Add BGE reranking only if evaluation confirms an improvement.
 4. Integrate server-side quiz sessions with FastAPI submission endpoints.
-5. Approve learner-data policy, then add PostgreSQL persistence and migrations.
+5. Anonymous five-field PostgreSQL progress persistence and migrations are implemented; accounts, identity-linked records, analytics, and automatic retention remain outside scope.
 6. Add structured logging, retries, and bounded HTTP requests.
 7. Implement the Microsoft Graph connector using approved OAuth permissions.
 8. Evaluate Langfuse only after privacy and retention review.

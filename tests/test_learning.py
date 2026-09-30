@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from learning import LearningRequest, LearningServiceError, QuizItem, create_learning_response, generate_quiz
+from learning import LearningRequest, LearningServiceError, QuizItem, create_learning_response, generate_quiz, generate_scored_quiz
 
 
 def test_create_learning_response_reuses_cited_answer_and_returns_structured_quiz():
@@ -42,7 +42,7 @@ def test_generate_quiz_parses_json_model_response():
     }
 
     def fake_chat(**kwargs):
-        assert kwargs["format"] == "json"
+        assert kwargs["format"]["properties"]["quiz"]["minItems"] == 1
         return {"message": {"content": json.dumps(payload)}}
 
     quiz = generate_quiz(
@@ -65,3 +65,27 @@ def test_generate_quiz_rejects_invalid_model_response():
             quiz_size=1,
             chat=lambda **_: {"message": {"content": "not json"}},
         )
+
+
+def test_generate_scored_quiz_retries_one_invalid_model_response():
+    responses = iter([
+        {"message": {"content": "not json"}},
+        {"message": {"content": json.dumps({
+            "quiz": [{
+                "question": "Which value is a scalar?",
+                "choices": ["5", "[1 2]"],
+                "source_problem_ids": ["Problem 3-A.1"],
+                "correct_choice_index": 0,
+            }]
+        })}},
+    ])
+
+    quiz = generate_scored_quiz(
+        explanation="A scalar has one value.",
+        citations=[{"problem_id": "Problem 3-A.1"}],
+        learning_goal=None,
+        quiz_size=1,
+        chat=lambda **_: next(responses),
+    )
+
+    assert quiz[0].correct_choice_index == 0

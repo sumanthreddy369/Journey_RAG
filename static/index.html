@@ -10,18 +10,18 @@
     <main class="shell">
       <header class="hero">
         <div class="brand"><span class="brand-mark">J</span><span>Journey</span></div>
-        <span class="status"><i></i> Local RAG ready</span>
+        <span class="status"><i></i> Local textbook learning</span>
       </header>
 
       <section class="intro">
         <p class="eyebrow">INTELLIGENT TEXTBOOK</p>
         <h1>Learn with answers you can trace.</h1>
-        <p class="lead">Ask a MATLAB question. Journey retrieves textbook passages, reranks them, and returns an answer with sources.</p>
+        <p class="lead">Ask a MATLAB question. Journey retrieves textbook passages and returns an answer with sources.</p>
       </section>
 
       <section class="workspace" aria-label="Question and answer workspace">
         <div class="ask-card">
-          <div class="card-heading"><div><p class="eyebrow">ASK JOURNEY</p><h2>What are you studying?</h2></div><span class="pipeline">BGE + BM25 + ONNX</span></div>
+          <div class="card-heading"><div><p class="eyebrow">ASK JOURNEY</p><h2>What are you studying?</h2></div><span class="pipeline">Cited textbook answers</span></div>
           <form id="ask-form">
             <label for="question">Your question</label>
             <textarea id="question" required maxlength="1000">What is the difference between a scalar and a vector in MATLAB?</textarea>
@@ -32,7 +32,7 @@
 
         <aside class="side-card">
           <p class="eyebrow">RETRIEVAL FLOW</p>
-          <ol class="flow"><li><span>01</span> Find textbook passages</li><li><span>02</span> Fuse semantic + keyword results</li><li><span>03</span> Rerank relevant context</li><li><span>04</span> Generate a cited explanation</li></ol>
+          <ol class="flow"><li><span>01</span> Find textbook passages</li><li><span>02</span> Generate a cited explanation</li><li><span>03</span> Complete a guided quiz</li><li><span>04</span> Review your next learning step</li></ol>
         </aside>
       </section>
 
@@ -45,6 +45,14 @@
         <div class="result-title"><div><p class="eyebrow">KNOWLEDGE CHECK</p><h2>Test your understanding</h2></div><span id="quiz-status" class="answer-status">Quiz ready</span></div>
         <form id="generated-quiz-form"></form>
         <div id="generated-quiz-result" class="quiz-result"></div>
+      </section>
+
+      <section class="quiz-card" aria-labelledby="history-title">
+        <div class="result-title"><div><p class="eyebrow">LOCAL PROGRESS</p><h2 id="history-title">Progress history</h2></div><button id="history-refresh" class="secondary" type="button">Refresh</button></div>
+        <p>Shared anonymous history on this computer. Only topic, score, route, recommendation, and time are saved when the local database is enabled. Your first submission completes each quiz.</p>
+        <p id="history-status" aria-live="polite"></p>
+        <ol id="history-items"></ol>
+        <button id="history-more" class="secondary" type="button" hidden>Load older attempts</button>
       </section>
 
       <section class="progress-card">

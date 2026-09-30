@@ -79,7 +79,8 @@ function renderGeneratedQuiz(payload) {
       if (!response.ok) throw new Error(score.detail || "Quiz evaluation failed.");
       generatedQuizResult.innerHTML = `<strong>${score.score_percent}% · ${escapeHtml(score.route)}</strong><span>${escapeHtml(score.next_action)}</span>`;
       generatedQuizResult.classList.add("visible");
-      quizStatus.textContent = "Progress updated";
+      quizStatus.textContent = score.progress_message;
+      if (score.progress_saved) await loadHistory(true);
     } catch (error) {
       generatedQuizResult.textContent = error.message;
       generatedQuizResult.classList.add("visible");
@@ -116,6 +117,42 @@ learnButton.addEventListener("click", async () => {
     learnButton.querySelector("span").textContent = "Start guided quiz";
   }
 });
+
+let historyOffset = 0;
+const historyPageSize = 20;
+async function loadHistory(reset = false) {
+  if (reset) historyOffset = 0;
+  const panel = document.querySelector("#history-items");
+  const status = document.querySelector("#history-status");
+  const more = document.querySelector("#history-more");
+  const refresh = document.querySelector("#history-refresh");
+  more.disabled = true;
+  refresh.disabled = true;
+  status.textContent = "Loading history…";
+  if (reset) panel.replaceChildren();
+  try {
+    const response = await fetch(`/progress-history?limit=${historyPageSize}&offset=${historyOffset}`);
+    const entries = await response.json();
+    if (!response.ok) throw new Error(entries.detail || "History could not be loaded.");
+    for (const entry of entries) {
+      const row = document.createElement("li");
+      row.innerHTML = `<strong>${escapeHtml(entry.topic_label)} · ${entry.score}% · ${escapeHtml(entry.route)}</strong><p>${escapeHtml(entry.recommendation)}</p><time>${escapeHtml(new Date(entry.timestamp).toLocaleString())}</time>`;
+      panel.append(row);
+    }
+    historyOffset += entries.length;
+    status.textContent = historyOffset ? `${historyOffset} ${historyOffset === 1 ? "attempt" : "attempts"} shown. Times use your local timezone.` : "No completed quizzes saved yet.";
+    more.hidden = entries.length < historyPageSize;
+  } catch (error) {
+    status.textContent = error.message;
+    more.hidden = true;
+  } finally {
+    more.disabled = false;
+    refresh.disabled = false;
+  }
+}
+document.querySelector("#history-refresh").addEventListener("click", () => loadHistory(true));
+document.querySelector("#history-more").addEventListener("click", () => loadHistory());
+loadHistory(true);
 
 document.querySelector("#quiz-button").addEventListener("click", async () => {
   const button = document.querySelector("#quiz-button");

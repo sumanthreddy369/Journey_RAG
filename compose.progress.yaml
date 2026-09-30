@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: journey
+      POSTGRES_USER: journey
+      POSTGRES_PASSWORD: ${JOURNEY_POSTGRES_PASSWORD:?Set a local database password}
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - journey_progress:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U journey -d journey"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  journey_progress:

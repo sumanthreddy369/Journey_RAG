@@ -1,60 +1,83 @@
 # Local runtime plan
 
-## Verified laptop runtime
+## Latest runtime audit — September 30, 2026
 
-| Component | Status | Local configuration |
-| --- | --- | --- |
-| Docker Qdrant | Complete | `journey-qdrant`, port `6333`. |
-| Baseline collection | Complete | `journey_textbook`. |
-| BGE collection | Complete | `journey_textbook_bge_v1`, 284 points, 384 dimensions. |
-| Baseline API | Complete | FastAPI at `http://127.0.0.1:8000/docs`. |
-| Hybrid API | Complete | FastAPI at `http://127.0.0.1:8002/docs` when `JOURNEY_RETRIEVAL_MODE=hybrid`. |
-| Hybrid + ONNX reranking API | Complete | FastAPI at `http://127.0.0.1:8003/docs` when hybrid mode and `JOURNEY_ONNX_RERANKER_DIR` are set. |
-| MCP server | Complete | Streamable HTTP at `http://127.0.0.1:8001/mcp`. |
-| Embedding model | Complete | Ollama `nomic-embed-text` for baseline; BGE small for hybrid dense retrieval. |
-| Answer model | Complete | Ollama `llama3.2` in the current application code. |
-| ONNX reranker | Complete locally | Exported local model loaded with ONNX Runtime and used by the port `8003` API. The model directory remains ignored by Git. |
-| Qwen models | Available locally | Not selected by application code or benchmarked. |
+The baseline learning workflow is live and verified locally:
 
-## Demonstration flow
+| Component | Current evidence |
+| --- | --- |
+| Ollama | Port 11434; `llama3.2:latest`, `nomic-embed-text:latest`, and `qwen3:14b` installed. |
+| Qdrant | Docker `journey-qdrant` on `127.0.0.1:6333`; `journey_textbook` contains 284 points. |
+| FastAPI/UI | Running at `127.0.0.1:8003`; real answer, quiz, submission, and history APIs exercised. |
+| PostgreSQL | Docker `journey-progress-postgres-1` healthy on `127.0.0.1:5435`; history survived an API restart. |
+| End-to-end result | Three-question quiz created, answer key absent from response, 33% routed to `reteach`, and history grew from five to six rows. |
+| Tests | **48 passed**, including real PostgreSQL migration and API tests. |
 
-```mermaid
-flowchart LR
-    A[Qdrant dashboard port 6333] --> B[Baseline collection]
-    A --> C[BGE collection]
-    D[Swagger port 8000] --> E[Baseline ask route]
-    F[Swagger port 8002] --> G[Hybrid ask route]
-    G --> H[BGE dense retrieval]
-    G --> I[BM25 retrieval]
-    H --> J[RRF fusion]
-    I --> J
-    J -->|hybrid| K[Ollama answer with citations]
-    N[Swagger port 8003] --> O[Hybrid plus ONNX ask route]
-    O --> H
-    O --> I
-    J -->|reranked hybrid| P[ONNX cross-encoder rerank]
-    P --> K
-    L[MCP port 8001] --> M[Search, answer, explain, quiz tools]
+Ollama quiz output is constrained with a JSON schema and retried once if semantic
+validation still fails. The expected source PDF and ONNX export remain absent.
+The BGE collection and MCP runtime were not started in this verification. See
+[workflow audit](WORKFLOW.md).
+
+## Earlier successful verification — September 29, 2026
+
+The repository started clean at `a6a1793` (`feat: add secure generated learning
+sessions`). Older runtime claims described another laptop; they are not evidence
+that its services or model files exist here.
+
+| Component | Current verification |
+| --- | --- |
+| FastAPI | Running at `http://127.0.0.1:8003`; `/health`, `/docs`, and `/progress-history` returned HTTP 200. |
+| Interactive UI | `/app` opened in the browser; persisted history and Refresh verified. |
+| PostgreSQL | Docker PostgreSQL 16, `journey-progress-postgres-1`, published only on `127.0.0.1:5435`. |
+| Progress schema | Alembic revision `0001` applied. Exactly five history columns: topic label, score, route, recommendation, UTC timestamp. |
+| Tests | 47 passed, including real PostgreSQL tests against a separate `journey_test` database. Model generation is stubbed in submission integration tests. |
+| Python | Project targets Python 3.11. This checkout's fresh ignored venv uses the available bundled Python 3.12; 3.11 was not available for this run. |
+| Baseline retrieval | Implemented with `journey_textbook`; no Qdrant or Ollama listener found during inspection. Not exercised live here. |
+| Hybrid retrieval | Implemented and selected by `JOURNEY_RETRIEVAL_MODE=hybrid`; live BGE retrieval not verified here. |
+| ONNX reranker | Adapter exists; `models/bge-reranker-onnx/model.onnx` was absent. |
+| MCP | Code binds `127.0.0.1:8001`; covered by tests, not started during this task. |
+
+## Run the local progress feature
+
+```powershell
+.\scripts\start-progress.ps1
+.\venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8003 --no-access-log
 ```
 
-The baseline and hybrid APIs use different ports so they can be compared without
-stopping either process. Hybrid mode preserves the original collection and uses
-the separate BGE collection.
+The setup script requires Docker Desktop and installed Python requirements. It
+creates ignored credentials in `.env.progress`, starts an isolated Compose
+project, imports the database URL into the current shell, and runs migrations.
+The database volume is outside Git. No other project's containers are changed.
 
-## Screenshot checklist
+Open:
 
-1. Open Qdrant at `http://127.0.0.1:6333/dashboard` and show both collections.
-2. Open baseline Swagger at `http://127.0.0.1:8000/docs` and run `/ask`.
-3. Open hybrid Swagger at `http://127.0.0.1:8002/docs` and run `/ask`.
-4. Open reranked hybrid Swagger at `http://127.0.0.1:8003/docs` and run `/ask`.
-5. Run local quiz-session creation and submission from Swagger to show the
-   deterministic `reteach`, `practice`, or `advance` result.
-6. Open GitHub README and `docs/retrieval-experiments.md` for code and flow
-   screenshots.
+- Learner UI: `http://127.0.0.1:8003/app`
+- API docs: `http://127.0.0.1:8003/docs`
+- History: `http://127.0.0.1:8003/progress-history`
 
-## Target, not built yet
+See [progress history](docs/progress-history.md) for privacy, retention,
+pagination, failure behavior, and test setup. History is shared anonymously
+within this local installation. Sessions and answer keys remain in memory.
 
-Fine-tuning, LoRA/QLoRA, Axolotl/LLaMA-Factory, LangGraph, vLLM, SGLang,
-llama.cpp, FAISS/Milvus/pgvector benchmarking, MLflow, DeepEval, and Microsoft
-365 ingestion require independent runtime, data, and evaluation work. They are
-not part of the verified local workflow above.
+## Enable retrieval only after its dependencies are ready
+
+Qdrant must be available on port 6333 and have the appropriate ingested collection.
+Ollama must have `llama3.2` and, for baseline retrieval, `nomic-embed-text`.
+
+```powershell
+# Optional hybrid mode; requires the separately ingested BGE collection.
+$env:JOURNEY_RETRIEVAL_MODE = "hybrid"
+# Optional reranking; set only when a compatible exported model exists.
+$env:JOURNEY_ONNX_RERANKER_DIR = "$PWD\models\bge-reranker-onnx"
+```
+
+A running API or successful `/health` response does not establish retrieval or
+model readiness. The existing baseline collection is preserved. No ingestion
+or model download was performed as part of the progress feature.
+
+## Planned, not implemented
+
+Identity-linked learner profiles, automatic retention/deletion UI, analytics,
+LangGraph, fine-tuning, vLLM/SGLang, alternate vector adapters, MLflow, DeepEval,
+and Microsoft 365 ingestion remain outside the implemented workflow. Anonymous
+PostgreSQL progress storage does not imply these features exist.
