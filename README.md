@@ -457,3 +457,11 @@ Tests live in `tests/`. They cover guardrails, learning JSON parsing, MCP reques
 ### MCP server implementation
 
 ![Journey MCP server code](assets/screenshots/05-mcp-server-code.png)
+
+### Interactive learner interface
+
+![Journey interactive learner interface](assets/screenshots/06-learner-interface.png)
+
+### Guided retrieval and learning flow
+
+![Journey guided retrieval flow](assets/screenshots/07-retrieval-flow.png)
